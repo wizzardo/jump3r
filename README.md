@@ -30,7 +30,7 @@ message says this is to compensate codec delay).
 
 This project is published as a Maven artifact to Maven Central (click badge above). To reference from other sbt build:
 
-    "de.sciss" % "jump3r" % "1.0.4"
+    "de.sciss" % "jump3r" % "1.0.5"
 
 Below are the original README and USAGE (adapted for markdown).
 

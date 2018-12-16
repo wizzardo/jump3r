@@ -1,12 +1,12 @@
 name              := "jump3r"
 organization      := "de.sciss"
-version           := "1.0.5-SNAPSHOT"
-scalaVersion      := "2.11.11"  // not used; travis can build with OpenJDK 6 under Scala 2.11 (not Scala 2.12)
+version           := "1.0.5"
+scalaVersion      := "2.11.12"  // not used; travis can build with OpenJDK 6 under Scala 2.11 (not Scala 2.12)
 licenses          := Seq("LGPL v2.1+" -> url("https://www.gnu.org/licenses/lgpl-2.1.txt"))
 crossPaths        := false
 autoScalaLibrary  := false
 
-homepage          := Some(url(s"https://github.com/Sciss/${name.value}"))
+homepage          := Some(url(s"https://git.iem.at/sciss/${name.value}"))
 description       := "Java Unofficial MP3 EncodeR - a Java port of LAME"
 
 lazy val commonJavaOptions = Seq("-source", "1.6")
@@ -35,8 +35,8 @@ pomIncludeRepository := { _ => false }
 
 pomExtra := { val n = name.value
   <scm>
-    <url>git@github.com:Sciss/{n}.git</url>
-    <connection>scm:git:git@github.com:Sciss/{n}.git</connection>
+    <url>git@git.iem.at:sciss/{n}.git</url>
+    <connection>scm:git:git@git.iem.at:sciss/{n}.git</connection>
   </scm>
   <developers>
     <developer>
@@ -61,3 +61,4 @@ pomExtra := { val n = name.value
     </developer>
   </developers>
 }
+

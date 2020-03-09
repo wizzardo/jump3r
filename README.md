@@ -647,3 +647,40 @@ result can sound worse.
 swap bytes in the input file (and output file when using `--decode`).
 For sorting out little endian/big endian type problems.  If your
 encodings sound like static, try this first.
+
+
+
+## Using Lame Encoder programmatically
+
+`LameEncoder` can be used to convert chunks of PCM byte array:
+
+```
+LameEncoder.encodeBuffer(final byte[] pcm, final int pcmOffset, final int pcmLength, final byte[] encoded)
+```
+
+A complete usage example:
+
+```java
+javax.sound.sampled.AudioFormat
+de.sciss.jump3r.lowlevel.LameEncoder
+
+public byte[] encodePcmToMp3(byte[] pcm, AudioFormat inputFormat) {
+  LameEncoder encoder = new LameEncoder(inputFormat);
+
+  ByteArrayOutputStream mp3 = new ByteArrayOutputStream();
+  byte[] buffer = new byte[encoder.getPCMBufferSize()];
+
+  int bytesToTransfer = Math.min(buffer.length, pcm.length);
+  int bytesWritten;
+  int currentPcmPosition = 0;
+  while (0 < (bytesWritten = encoder.encodeBuffer(pcm, currentPcmPosition, bytesToTransfer, buffer))) {
+    currentPcmPosition += bytesToTransfer;
+    bytesToTransfer = Math.min(buffer.length, pcm.length - currentPcmPosition);
+
+    mp3.write(buffer, 0, bytesWritten);
+  }
+
+  encoder.close();
+  return mp3.toByteArray();
+}
+```

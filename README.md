@@ -661,6 +661,9 @@ LameEncoder.encodeBuffer(final byte[] pcm, final int pcmOffset, final int pcmLen
 A complete usage example:
 
 ```java
+javax.sound.sampled.AudioFormat
+de.sciss.jump3r.lowlevel.LameEncoder
+
 public byte[] encodePcmToMp3(byte[] pcm, AudioFormat inputFormat) {
   LameEncoder encoder = new LameEncoder(inputFormat);
 

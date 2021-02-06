@@ -95,20 +95,33 @@ public class MPGLib {
 	public final static int MP3_OK  =0;
 	final static int MP3_NEED_MORE =1;
 
-    /* copy mono samples */
-	@SuppressWarnings("unchecked")
-	protected <DST_TYPE, SRC_TYPE> void COPY_MONO(short[] pcm_l,
+	protected void COPY_MONO(short[] pcm_l,
 			int pcm_lPos, int processed_samples, short[] p) {
-		int p_samples = 0;
-		for (int i = 0; i < processed_samples; i++)
-			pcm_l[pcm_lPos++] =  (p[p_samples++]);
+//		int p_samples = 0;
+//		for (int i = 0; i < processed_samples; i++)
+//			pcm_l[pcm_lPos++] =  (p[p_samples++]);
+
+		System.arraycopy(p, 0, pcm_l, pcm_lPos, processed_samples);
 	}
 
-    /* copy stereo samples */
-	@SuppressWarnings("unchecked")
-	protected <DST_TYPE, SRC_TYPE> void COPY_STEREO(short[] pcm_l,
+	protected void COPY_STEREO(short[] pcm_l,
 			int pcm_lPos, short[] pcm_r, int pcm_rPos,
 			int processed_samples, short[] p) {
+		int p_samples = 0;
+		for (int i = 0; i < processed_samples; i++) {
+			pcm_l[pcm_lPos++] = p[p_samples++];
+			pcm_r[pcm_rPos++] = p[p_samples++];
+		}
+	}
+
+	protected void COPY_MONO(float[] pcm_l, int pcm_lPos, int processed_samples, float[] p) {
+//		int p_samples = 0;
+//		for (int i = 0; i < processed_samples; i++)
+//			pcm_l[pcm_lPos++] = (p[p_samples++]);
+		System.arraycopy(p, 0, pcm_l, pcm_lPos, processed_samples);
+	}
+
+	protected void COPY_STEREO(float[] pcm_l, int pcm_lPos, float[] pcm_r, int pcm_rPos, int processed_samples, float[] p) {
 		int p_samples = 0;
 		for (int i = 0; i < processed_samples; i++) {
 			pcm_l[pcm_lPos++] = p[p_samples++];
@@ -233,6 +246,109 @@ public class MPGLib {
         return processed_samples;
     }
 
+    /*
+     * For lame_decode:  return code
+     * -1     error
+     *  0     ok, but need more data before outputing any samples
+     *  n     number of samples output.  either 576 or 1152 depending on MP3 file.
+     */
+
+	private int decode1_headersB_clipchoice(mpstr_tag pmp, byte[] buffer,
+			int bufferPos, int len, float pcm_l[], int pcm_lPos, float pcm_r[], int pcm_rPos, MP3Data mp3data,
+			Enc enc, float[] p, int psize) {
+
+        int     processed_samples; /* processed samples per channel */
+        int     ret;
+
+        mp3data.header_parsed = false;
+
+        ProcessedBytes pb = new ProcessedBytes();
+//        ret = decodeMP3_ptr.decode(pmp, buffer, bufferPos, len, p, psize, pb);
+		ret = interf.decodeMP3_unclipped(pmp, buffer, bufferPos, len, p, psize, pb);
+        processed_samples = pb.pb;
+        /* three cases:
+         * 1. headers parsed, but data not complete
+         *       pmp.header_parsed==1
+         *       pmp.framesize=0
+         *       pmp.fsizeold=size of last frame, or 0 if this is first frame
+         *
+         * 2. headers, data parsed, but ancillary data not complete
+         *       pmp.header_parsed==1
+         *       pmp.framesize=size of frame
+         *       pmp.fsizeold=size of last frame, or 0 if this is first frame
+         *
+         * 3. frame fully decoded:
+         *       pmp.header_parsed==0
+         *       pmp.framesize=0
+         *       pmp.fsizeold=size of frame (which is now the last frame)
+         *
+         */
+        if (pmp.header_parsed || pmp.fsizeold > 0 || pmp.framesize > 0) {
+            mp3data.header_parsed = true;
+            mp3data.stereo = pmp.fr.stereo;
+            mp3data.samplerate = Common.freqs[pmp.fr.sampling_frequency];
+            mp3data.mode = pmp.fr.mode;
+            mp3data.mode_ext = pmp.fr.mode_ext;
+            mp3data.framesize = smpls[pmp.fr.lsf][pmp.fr.lay];
+
+            /* free format, we need the entire frame before we can determine
+             * the bitrate.  If we haven't gotten the entire frame, bitrate=0 */
+            if (pmp.fsizeold > 0) /* works for free format and fixed, no overrun, temporal results are < 400.e6 */
+                mp3data.bitrate = (int) (8 * (4 + pmp.fsizeold) * mp3data.samplerate /
+                    (1.e3 * mp3data.framesize) + 0.5);
+            else if (pmp.framesize > 0)
+                mp3data.bitrate = (int) (8 * (4 + pmp.framesize) * mp3data.samplerate /
+                    (1.e3 * mp3data.framesize) + 0.5);
+            else
+                mp3data.bitrate = Common.tabsel_123[pmp.fr.lsf][pmp.fr.lay - 1][pmp.fr.bitrate_index];
+
+
+
+            if (pmp.num_frames > 0) {
+                /* Xing VBR header found and num_frames was set */
+                mp3data.totalframes = pmp.num_frames;
+                mp3data.nsamp = mp3data.framesize * pmp.num_frames;
+                enc.enc_delay = pmp.enc_delay;
+                enc.enc_padding = pmp.enc_padding;
+            }
+        }
+
+        switch (ret) {
+        case MP3_OK:
+            switch (pmp.fr.stereo) {
+            case 1:
+				COPY_MONO(pcm_l, pcm_lPos, processed_samples, p);
+                break;
+            case 2:
+                processed_samples = (processed_samples) >> 1;
+				COPY_STEREO(pcm_l, pcm_lPos, pcm_r, pcm_rPos,processed_samples, p);
+                break;
+            default:
+                processed_samples = -1;
+                assert(false);
+                break;
+            }
+            break;
+
+        case MP3_NEED_MORE:
+            processed_samples = 0;
+            break;
+
+        case MP3_ERR:
+            processed_samples = -1;
+            break;
+
+        default:
+            processed_samples = -1;
+            assert(false);
+            break;
+        }
+
+        /*fprintf(stderr,"ok, more, err:  %i %i %i\n", MP3_OK, MP3_NEED_MORE, MP3_ERR ); */
+        /*fprintf(stderr,"ret = %i out=%i\n", ret, processed_samples ); */
+        return processed_samples;
+    }
+
     private static final int OUTSIZE_CLIPPED = 4096;
 
 	public mpstr_tag hip_decode_init()
@@ -260,45 +376,19 @@ public class MPGLib {
 	 * channel are allowed.
 	 */
 	public int hip_decode1_unclipped(mpstr_tag hip, byte[] buffer, int bufferPos,
-			int len, final float pcm_l[], final float pcm_r[]) {
+									 int len, final float pcm_l[], final float pcm_r[]) {
+		return hip_decode1_unclipped(hip, buffer, bufferPos, len, pcm_l, pcm_r, new MP3Data());
+	}
 
-		MP3Data mp3data = new MP3Data();
+	LocalVars.LocalVar<float[]> outUnClipped = LocalVars.createFloatArray(new float[OUTSIZE_UNCLIPPED]);
+	public int hip_decode1_unclipped(mpstr_tag hip, byte[] buffer, int bufferPos,
+			int len, final float pcm_l[], final float pcm_r[], MP3Data mp3data) {
 		Enc enc = new Enc();
 
 		if (hip != null) {
-            IDecoder dec = new IDecoder() {
-				
-				@Override
-				public <X>int decode(mpstr_tag mp, byte[] in, int bufferPos, int isize,
-						short[] out, int osize, ProcessedBytes done, Decode.FactoryFloatToShort tFactory) {
-					return interf.decodeMP3_unclipped(mp, in, bufferPos, isize, out, osize, done, tFactory);
-				}
-			};
-			short[] out = new short[OUTSIZE_UNCLIPPED];
-			Decode.FactoryFloatToShort tFactory = new Decode.FactoryFloatToShort() {
-
-				@Override
-				public short create(float x) {
-					return (short) x;
-				}
-			};
-			// XXX should we avoid the primitive type version?
-			short[] pcmL = new short[pcm_l.length];
-			for (int i = 0; i < pcmL.length; i++) {
-				pcmL[i] = (short) pcm_l[i];
-			}
-			short[] pcmR = new short[pcm_r.length];
-			for (int i = 0; i < pcmR.length; i++) {
-				pcmR[i] = (short) pcm_r[i];
-			}
+			float[] out = outUnClipped.get();
 			int decode1_headersB_clipchoice = decode1_headersB_clipchoice(hip, buffer, bufferPos, len,
-					pcmL, 0, pcmR, 0, mp3data, enc, out, OUTSIZE_UNCLIPPED, dec, tFactory );
-			for (int i = 0; i < pcmL.length; i++) {
-				pcm_l[i] = pcmL[i];
-			}
-			for (int i = 0; i < pcmR.length; i++) {
-				pcm_r[i] = pcmR[i];
-			}
+					pcm_l, 0, pcm_r, 0, mp3data, enc, out, OUTSIZE_UNCLIPPED);
 			return decode1_headersB_clipchoice;
 		}
 		return 0;

@@ -126,17 +126,23 @@ public class GetAudio {
 		return get_audio_common(gfp, buffer, null);
 	}
 
+
+	public final int get_audio(final LameGlobalFlags gfp, float buffer[][]) {
+		return get_audio_common(gfp, buffer);
+	}
+
 	/**
 	 * behave as the original get_audio function, with a limited 16 bit per
 	 * sample output
 	 */
 	public final int get_audio16(final LameGlobalFlags gfp,
 			final short buffer[][]) {
-		return (get_audio_common(gfp, null, buffer));
+		return (get_audio_common(gfp, (int[][]) null, buffer));
 	}
 
 
 	LocalVars.LocalVar<short[][]> buf_tmp16 = LocalVars.createShortArray2( new short[2][1152]);
+	LocalVars.LocalVar<float[][]> buf_tmp16Float = LocalVars.createFloatArray2( new float[2][1152]);
 	LocalVars.LocalVar<int[]> insamp = LocalVars.createIntArray(new int[2 * 1152]);
 
 	/**
@@ -155,9 +161,8 @@ public class GetAudio {
 			final int buffer[][], final short buffer16[][]) {
 		int num_channels = gfp.num_channels;
 //		int insamp[] = new int[2 * 1152];
-		int[] insamp = this.insamp.get();
 //		short buf_tmp16[][] = new short[2][1152];
-		short[][] buf_tmp16 = this.buf_tmp16.get();
+		short[][] buf_tmp16 = buffer != null ? this.buf_tmp16.get() : null;
 		int samples_read;
 		int framesize;
 		int samples_to_read;
@@ -204,6 +209,7 @@ public class GetAudio {
 				return samples_read;
 			}
 		} else { /* convert from int; output to 16-bit buffer */
+			int[] insamp = this.insamp.get();
 			samples_read = read_samples_pcm(musicin, insamp, num_channels
 					* samples_to_read);
 			if (samples_read < 0) {
@@ -265,6 +271,92 @@ public class GetAudio {
 		return samples_read;
 	}
 
+	/**
+	 * central functionality of get_audio* note: either buffer or buffer16 must
+	 * be allocated upon call
+	 *
+	 * @param gfp
+	 *            global flags
+	 * @param buffer
+	 *            buffer output to the float buffer
+	 * @return samples read
+	 */
+	private int get_audio_common(final LameGlobalFlags gfp, final float buffer[][]) {
+		int num_channels = gfp.num_channels;
+		int samples_read;
+		int framesize;
+		int samples_to_read;
+		int remaining, tmp_num_samples;
+
+		/*
+		 * NOTE: LAME can now handle arbritray size input data packets, so there
+		 * is no reason to read the input data in chuncks of size "framesize".
+		 * EXCEPT: the LAME graphical frame analyzer will get out of sync if we
+		 * read more than framesize worth of data.
+		 */
+
+		samples_to_read = framesize = gfp.framesize;
+		assert (framesize <= 1152);
+
+		/* get num_samples */
+		tmp_num_samples = gfp.num_samples;
+
+		/*
+		 * if this flag has been set, then we are carefull to read exactly
+		 * num_samples and no more. This is useful for .wav and .aiff files
+		 * which have id3 or other tags at the end. Note that if you are using
+		 * LIBSNDFILE, this is not necessary
+		 */
+		if (count_samples_carefully) {
+			remaining = tmp_num_samples
+					- Math.min(tmp_num_samples, num_samples_read);
+			if (remaining < framesize && 0 != tmp_num_samples)
+				/*
+				 * in case the input is a FIFO (at least it's reproducible with
+				 * a FIFO) tmp_num_samples may be 0 and therefore remaining
+				 * would be 0, but we need to read some samples, so don't change
+				 * samples_to_read to the wrong value in this case
+				 */
+				samples_to_read = remaining;
+		}
+
+		if (is_mpeg_file_format(parse.input_format)) {
+			samples_read = read_samples_mp3(gfp, musicin, buffer);
+			if (samples_read < 0) {
+				return samples_read;
+			}
+		} else { /* convert from int; output to 16-bit buffer */
+			int[] insamp = this.insamp.get();
+			samples_read = read_samples_pcm(musicin, insamp, num_channels * samples_to_read);
+			if (samples_read < 0) {
+				return samples_read;
+			}
+			int p = samples_read;
+			samples_read /= num_channels;
+			if (num_channels == 2) {
+				for (int i = samples_read; --i >= 0; ) {
+					buffer[1][i] = insamp[--p];
+					buffer[0][i] = insamp[--p];
+				}
+			} else if (num_channels == 1) {
+				Arrays.fill(buffer[1], 0, samples_read, 0);
+				for (int i = samples_read; --i >= 0; ) {
+					buffer[0][i] = insamp[--p];
+				}
+			} else
+				assert (false);
+		}
+
+		/*
+		 * if num_samples = MAX_U_32_NUM, then it is considered infinitely long.
+		 * Don't count the samples
+		 */
+		if (tmp_num_samples != Integer.MAX_VALUE)
+			num_samples_read += samples_read;
+
+		return samples_read;
+	}
+
 	private static final String type_name = "MP3 file";
 
 	int read_samples_mp3(final LameGlobalFlags gfp, RandomAccessFile musicin,
@@ -273,6 +365,39 @@ public class GetAudio {
 
 		out = lame_decode_fromfile(musicin, mpg123pcm[0], mpg123pcm[1],
 				parse.mp3input_data);
+		/*
+		 * out < 0: error, probably EOF out = 0: not possible with
+		 * lame_decode_fromfile() ??? out > 0: number of output samples
+		 */
+		if (out < 0) {
+			Arrays.fill(mpg123pcm[0], (short) 0);
+			Arrays.fill(mpg123pcm[1], (short) 0);
+			return 0;
+		}
+
+		if (gfp.num_channels != parse.mp3input_data.stereo) {
+			if (parse.silent < 10) {
+				System.err
+						.printf("Error: number of channels has changed in %s - not supported\n",
+								type_name);
+			}
+			out = -1;
+		}
+		if (gfp.in_samplerate != parse.mp3input_data.samplerate) {
+			if (parse.silent < 10) {
+				System.err
+						.printf("Error: sample frequency has changed in %s - not supported\n",
+								type_name);
+			}
+			out = -1;
+		}
+		return out;
+	}
+
+	int read_samples_mp3(final LameGlobalFlags gfp, RandomAccessFile musicin, float mpg123pcm[][]) {
+		int out;
+
+		out = lame_decode_fromfile(musicin, mpg123pcm[0], mpg123pcm[1], parse.mp3input_data);
 		/*
 		 * out < 0: error, probably EOF out = 0: not possible with
 		 * lame_decode_fromfile() ??? out > 0: number of output samples
@@ -1197,6 +1322,56 @@ public class GetAudio {
 			}
 
 			ret = mpg.hip_decode1_headers(hip, buf, len, pcm_l, pcm_r, mp3data);
+			if (ret == -1) {
+				mpg.hip_decode_exit(hip);
+				/* release mp3decoder memory */
+				hip = null;
+				return -1;
+			}
+			if (ret > 0)
+				break;
+		}
+		return ret;
+	}
+
+	/**
+	 * @return -1 error n number of samples output. either 576 or 1152 depending
+	 *         on MP3 file.
+	 */
+	private int lame_decode_fromfile(final RandomAccessFile fd,
+			final float pcm_l[], final float pcm_r[], final MP3Data mp3data) {
+		int ret = 0;
+		int len = 0;
+//		byte buf[] = new byte[1024];
+		byte buf[] = this.buf.get();
+
+		/* first see if we still have data buffered in the decoder: */
+		ret = -1;
+		ret = mpg.hip_decode1_unclipped(hip, buf,0, len, pcm_l, pcm_r, mp3data);
+		if (ret != 0)
+			return ret;
+
+		/* read until we get a valid output frame */
+		while (true) {
+			try {
+				len = fd.read(buf, 0, 1024);
+			} catch (IOException e) {
+				e.printStackTrace();
+				return -1;
+			}
+			if (len <= 0) {
+				/* we are done reading the file, but check for buffered data */
+				ret = mpg.hip_decode1_unclipped(hip, buf, 0,0, pcm_l, pcm_r, mp3data);
+				if (ret <= 0) {
+					mpg.hip_decode_exit(hip);
+					/* release mp3decoder memory */
+					hip = null;
+					return -1; /* done with file */
+				}
+				break;
+			}
+
+			ret = mpg.hip_decode1_unclipped(hip, buf, 0, len, pcm_l, pcm_r, mp3data);
 			if (ret == -1) {
 				mpg.hip_decode_exit(hip);
 				/* release mp3decoder memory */

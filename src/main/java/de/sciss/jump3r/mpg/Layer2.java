@@ -312,4 +312,40 @@ public class Layer2 {
 
         return clip;
     }
+	public <T> int do_layer2(final mpstr_tag mp, final float[] pcm_sample,
+			final ProcessedBytes pcm_point, Decode decode) {
+        int     clip = 0;
+        int     i, j;
+        float    fraction[][][]=new float[2][4][MPG123.SBLIMIT]; /* pick_table clears unused subbands */
+        int bit_alloc[]=new int[64];
+        int     scale[]=new int[192];
+        Frame fr = mp.fr;
+        int     stereo = fr.stereo;
+        int     single = fr.single;
+
+        II_select_table(fr);
+        fr.jsbound = (fr.mode == MPG123.MPG_MD_JOINT_STEREO) ? (fr.mode_ext << 2) + 4 : fr.II_sblimit;
+
+        if (stereo == 1 || single == 3)
+            single = 0;
+
+        II_step_one(mp, bit_alloc, scale, fr);
+
+        for (i = 0; i < MPG123.SCALE_BLOCK; i++) {
+            II_step_two(mp, bit_alloc, fraction, scale, fr, i >> 2);
+            for (j = 0; j < 3; j++) {
+	            if (single >= 0) {
+                    clip += decode.synth_1to1_mono_unclipped(mp, fraction[single][j], 0, pcm_sample, pcm_point);
+	            }
+	            else {
+	            	ProcessedBytes p1 = new ProcessedBytes();
+	            	p1.pb = pcm_point.pb;
+                    clip += decode.synth_1to1_unclipped(mp, fraction[0][j], 0, 0, pcm_sample, p1);
+                    clip += decode.synth_1to1_unclipped(mp, fraction[1][j], 0, 1, pcm_sample, pcm_point);
+	            }
+            }
+        }
+
+        return clip;
+    }
 }

@@ -339,7 +339,8 @@ public class DCT64 {
 	}
 
 
-	LocalVars.LocalVar<float[]> bufs = LocalVars.createFloatArray(new float[64]);
+//	LocalVars.LocalVar<float[]> bufs = LocalVars.createFloatArray(new float[64]);
+float[] bufs = new float[64];
 	/*
 	 * the call via dct64 is a trick to force GCC to use
 	 * (new) registers for the b1,b2 pointer to the bufs[xx] field
@@ -347,7 +348,7 @@ public class DCT64 {
 	public void dct64(float[] a, int aPos, float[] b, int bPos, float[] c,
 			int cPos) {
 //		float[] bufs = new float[64];
-		float[] bufs = this.bufs.get();
+		float[] bufs = this.bufs;
 		dct64_1(a, aPos, b, bPos, bufs, 0x20, c, cPos);
 	}
 }

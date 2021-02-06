@@ -148,13 +148,12 @@ public class Layer3 {
 			pow1_2[][] = new float[2][16], pow2_2[][] = new float[2][16];
 
 	private int get1bit(final mpstr_tag mp) {
-		int rval = (mp.wordpointer[mp.wordpointerPos] & 0xff) << mp.bitindex;
-		rval &= 0xff;
+		int rval = (((mp.wordpointer[mp.wordpointerPos] & 0xff) << mp.bitindex) & 0xff) >> 7;
 		mp.bitindex++;
 		mp.wordpointerPos += (mp.bitindex >> 3);
 		mp.bitindex &= 7;
 
-		return rval >> 7;
+		return rval;
 	}
 
 	private static double Ci[] = { -0.6, -0.535, -0.33, -0.185, -0.095, -0.041,
@@ -2022,4 +2021,221 @@ public class Layer3 {
 	    return clip;
 	}
 
+	public int
+	do_layer3(mpstr_tag mp, float[] pcm_sample, ProcessedBytes pcm_point, Decode decode)
+	{
+		int     gr, ch, ss, clip = 0;
+//	    int     scalefacs[][]=new int[2][39]; /* max 39 for short[13][3] mode, mixed: 38, long: 22 */
+		int     scalefacs[][]=this.scalefacs.get(); /* max 39 for short[13][3] mode, mixed: 38, long: 22 */
+		/*  struct III_sideinfo sideinfo; */
+		Frame fr = (mp.fr);
+		int     stereo = fr.stereo;
+		int     single = fr.single;
+		int     ms_stereo, i_stereo;
+		int     sfreq = fr.sampling_frequency;
+		int     stereo1, granules;
+
+		if (common.set_pointer(mp, sideinfo.main_data_begin) == MPGLib.MP3_ERR)
+			return 0;
+
+		if (stereo == 1) {  /* stream is mono */
+			stereo1 = 1;
+			single = 0;
+		}
+		else if (single >= 0) /* stream is stereo, but force to mono */
+			stereo1 = 1;
+		else
+			stereo1 = 2;
+
+		if (fr.mode == MPG123.MPG_MD_JOINT_STEREO) {
+			ms_stereo = fr.mode_ext & 0x2;
+			i_stereo = fr.mode_ext & 0x1;
+		}
+		else
+			ms_stereo = i_stereo = 0;
+
+
+		if (fr.lsf!=0) {
+			granules = 1;
+		}
+		else {
+			granules = 2;
+		}
+
+		for (gr = 0; gr < granules; gr++) {
+
+			{
+				gr_info_s gr_infos = (sideinfo.ch[0].gr[gr]);
+				int    part2bits;
+
+				if (fr.lsf!=0)
+					part2bits = III_get_scale_factors_2(mp, scalefacs[0], gr_infos, 0);
+				else {
+					part2bits = III_get_scale_factors_1(mp, scalefacs[0], gr_infos);
+				}
+
+				if (mp.pinfo != null) {
+					int     i;
+					mp.pinfo.sfbits[gr][0] = part2bits;
+					for (i = 0; i < 39; i++)
+						mp.pinfo.sfb_s[gr][0][i] = scalefacs[0][i];
+				}
+
+				/* fprintf(stderr, "calling III dequantize sample 1 gr_infos.part2_3_length %d\n", gr_infos.part2_3_length); */
+				if (III_dequantize_sample(mp, hybridIn[0], scalefacs[0], gr_infos, sfreq, part2bits)!=0)
+					return clip;
+			}
+			if (stereo == 2) {
+				gr_info_s gr_infos = (sideinfo.ch[1].gr[gr]);
+				int    part2bits;
+				if (fr.lsf!=0)
+					part2bits = III_get_scale_factors_2(mp, scalefacs[1], gr_infos, i_stereo);
+				else {
+					part2bits = III_get_scale_factors_1(mp, scalefacs[1], gr_infos);
+				}
+				if (mp.pinfo != null) {
+					int     i;
+					mp.pinfo.sfbits[gr][1] = part2bits;
+					for (i = 0; i < 39; i++)
+						mp.pinfo.sfb_s[gr][1][i] = scalefacs[1][i];
+				}
+
+				/* fprintf(stderr, "calling III dequantize sample 2  gr_infos.part2_3_length %d\n", gr_infos.part2_3_length); */
+				if (III_dequantize_sample(mp, hybridIn[1], scalefacs[1], gr_infos, sfreq, part2bits)!=0)
+					return clip;
+
+				if (ms_stereo!=0) {
+					int     i;
+					for (i = 0; i < MPG123.SBLIMIT * MPG123.SSLIMIT; i++) {
+						float    tmp0, tmp1;
+						tmp0 = ((float []) hybridIn[0])[i];
+						tmp1 = ((float []) hybridIn[1])[i];
+						hybridIn[1][i] = tmp0 - tmp1;
+						hybridIn[0][i] = tmp0 + tmp1;
+					}
+				}
+
+				if (i_stereo!=0)
+					III_i_stereo(hybridIn, scalefacs[1], gr_infos, sfreq, ms_stereo, fr.lsf);
+
+				if (ms_stereo!=0 || i_stereo!=0 || (single == 3)) {
+					if (gr_infos.maxb > sideinfo.ch[0].gr[gr].maxb)
+						sideinfo.ch[0].gr[gr].maxb = gr_infos.maxb;
+					else
+						gr_infos.maxb = sideinfo.ch[0].gr[gr].maxb;
+				}
+
+				switch (single) {
+					case 3:
+					{
+						int     i;
+						float   in0[] = hybridIn[0], in1[] = hybridIn[1];
+						int in0Pos = 0, in1Pos = 0;
+						for (i = 0; i < (MPG123.SSLIMIT * gr_infos.maxb); i++, in0Pos++)
+							in0[in0Pos] = (in0[in0Pos] + in1[in1Pos++]); /* *0.5 done by pow-scale */
+					}
+					break;
+					case 1:
+					{
+						int     i;
+						float   in0[] = hybridIn[0], in1[] = hybridIn[1];
+						int in0Pos = 0, in1Pos = 0;
+						for (i = 0; i < (MPG123.SSLIMIT * gr_infos.maxb); i++)
+							in0[in0Pos++] = in1[in1Pos++];
+					}
+					break;
+				}
+			}
+
+			if (mp.pinfo != null) {
+				int     i, sb;
+				float   ifqstep;
+
+				mp.pinfo.bitrate = Common.tabsel_123[fr.lsf][fr.lay - 1][fr.bitrate_index];
+				mp.pinfo.sampfreq = Common.freqs[sfreq];
+				mp.pinfo.emph = fr.emphasis;
+				mp.pinfo.crc = fr.error_protection?1:0;
+				mp.pinfo.padding = fr.padding;
+				mp.pinfo.stereo = fr.stereo;
+				mp.pinfo.js = (fr.mode == MPG123.MPG_MD_JOINT_STEREO)?1:0;
+				mp.pinfo.ms_stereo = ms_stereo;
+				mp.pinfo.i_stereo = i_stereo;
+				mp.pinfo.maindata = sideinfo.main_data_begin;
+
+				for (ch = 0; ch < stereo1; ch++) {
+					gr_info_s gr_infos = (sideinfo.ch[ch].gr[gr]);
+					mp.pinfo.big_values[gr][ch] = gr_infos.big_values;
+					mp.pinfo.scalefac_scale[gr][ch] = gr_infos.scalefac_scale;
+					mp.pinfo.mixed[gr][ch] = gr_infos.mixed_block_flag;
+					mp.pinfo.mpg123blocktype[gr][ch] = gr_infos.block_type;
+					mp.pinfo.mainbits[gr][ch] = gr_infos.part2_3_length;
+					mp.pinfo.preflag[gr][ch] = gr_infos.preflag;
+					if (gr == 1)
+						mp.pinfo.scfsi[ch] = gr_infos.scfsi;
+				}
+
+
+				for (ch = 0; ch < stereo1; ch++) {
+					gr_info_s gr_infos = (sideinfo.ch[ch].gr[gr]);
+					ifqstep = (mp.pinfo.scalefac_scale[gr][ch] == 0) ? .5f : 1.0f;
+					if (2 == gr_infos.block_type) {
+						for (i = 0; i < 3; i++) {
+							for (sb = 0; sb < 12; sb++) {
+								int     j = 3 * sb + i;
+	                            /*
+	                               is_p = scalefac[sfb*3+lwin-gr_infos.mixed_block_flag];
+	                             */
+								/* scalefac was copied into pinfo.sfb_s[] above */
+								mp.pinfo.sfb_s[gr][ch][j] =
+										-ifqstep * mp.pinfo.sfb_s[gr][ch][j - gr_infos.mixed_block_flag];
+								mp.pinfo.sfb_s[gr][ch][j] -= 2 * (mp.pinfo.sub_gain[gr][ch][i]);
+							}
+							mp.pinfo.sfb_s[gr][ch][3 * sb + i] =
+									-2 * (mp.pinfo.sub_gain[gr][ch][i]);
+						}
+					}
+					else {
+						for (sb = 0; sb < 21; sb++) {
+							/* scalefac was copied into pinfo.sfb[] above */
+							mp.pinfo.sfb[gr][ch][sb] = mp.pinfo.sfb_s[gr][ch][sb];
+							if (gr_infos.preflag!=0)
+								mp.pinfo.sfb[gr][ch][sb] += pretab1[sb];
+							mp.pinfo.sfb[gr][ch][sb] *= -ifqstep;
+						}
+						mp.pinfo.sfb[gr][ch][21] = 0;
+					}
+				}
+
+
+
+				for (ch = 0; ch < stereo1; ch++) {
+					int     j = 0;
+					for (sb = 0; sb < MPG123.SBLIMIT; sb++)
+						for (ss = 0; ss < MPG123.SSLIMIT; ss++, j++)
+							mp.pinfo.mpg123xr[gr][ch][j] = hybridIn[ch][sb*MPG123.SSLIMIT+ss];
+				}
+			}
+
+
+			for (ch = 0; ch < stereo1; ch++) {
+				gr_info_s gr_infos = (sideinfo.ch[ch].gr[gr]);
+				III_antialias(hybridIn[ch], gr_infos);
+				III_hybrid(mp, hybridIn[ch], hybridOut[ch], ch, gr_infos);
+			}
+
+			ProcessedBytes p1 = new ProcessedBytes();
+			for (ss = 0; ss < MPG123.SSLIMIT; ss++) {
+				if (single >= 0) {
+					clip += decode.synth_1to1_mono_unclipped(mp, hybridOut[0], ss * MPG123.SBLIMIT, pcm_sample, pcm_point);
+				}
+				else {
+					p1.pb = pcm_point.pb;
+					clip += decode.synth_1to1_unclipped(mp, hybridOut[0], ss * MPG123.SBLIMIT, 0, pcm_sample, p1);
+					clip += decode.synth_1to1_unclipped(mp, hybridOut[1], ss * MPG123.SBLIMIT, 1, pcm_sample, pcm_point);
+				}
+			}
+		}
+
+		return clip;
+	}
 }

@@ -186,4 +186,37 @@ public class Layer1 {
 
 	    return clip;
 	}
+
+	public <T> int do_layer1(final mpstr_tag mp, final float[] pcm_sample, final ProcessedBytes pcm_point) {
+	    int     clip = 0;
+	    int balloc[]=new int[2 * MPG123.SBLIMIT];
+	    int scale_index[]=new int[2 * MPG123.SBLIMIT];
+	    float    fraction[][]=new float[2][MPG123.SBLIMIT];
+	    Frame fr = mp.fr;
+	    int     i, stereo = fr.stereo;
+	    int     single = fr.single;
+
+	    fr.jsbound = (fr.mode == MPG123.MPG_MD_JOINT_STEREO) ? (fr.mode_ext << 2) + 4 : 32;
+
+	    if (stereo == 1 || single == 3)
+	        single = 0;
+
+	    I_step_one(mp, balloc, scale_index, fr);
+
+	    for (i = 0; i < MPG123.SCALE_BLOCK; i++) {
+	        I_step_two(mp, fraction, balloc, scale_index, fr);
+
+	        if (single >= 0) {
+	            clip += decode.synth_1to1_mono_unclipped(mp, fraction[single], 0, pcm_sample, pcm_point);
+	        }
+	        else {
+            	ProcessedBytes p1 = new ProcessedBytes();
+            	p1.pb = pcm_point.pb;
+	            clip += decode.synth_1to1_unclipped(mp, fraction[0], 0, 0, pcm_sample, p1);
+	            clip += decode.synth_1to1_unclipped(mp, fraction[1], 0, 1, pcm_sample, pcm_point);
+	        }
+	    }
+
+	    return clip;
+	}
 }

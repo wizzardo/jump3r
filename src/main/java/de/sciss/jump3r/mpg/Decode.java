@@ -56,25 +56,22 @@ public class Decode {
 	}
 	
 	/* old WRITE_SAMPLE_CLIPPED */
-	private int WRITE_SAMPLE_CLIPPED(int samples, float sum, int clip,
-			short[] out, Decode.FactoryFloatToShort tFactory) {
+	private int WRITE_SAMPLE_CLIPPED(int samples, float sum, int clip, short[] out) {
 		/* old WRITE_SAMPLE_CLIPPED */
 		if ((sum) > 32767.0) {
-			out[samples] = tFactory.create(32767);
+			out[samples] = (short) 32767;
 			(clip)++;
 		} else if ((sum) < -32768.0) {
-			out[samples] = tFactory.create(-32768);
+			out[samples] = (short) -32768;
 			(clip)++;
 		} else {
-			out[samples] = tFactory.create((int) ((sum) > 0 ? (sum) + 0.5
-					: (sum) - 0.5));
+			out[samples] = (short) ((sum) > 0 ? (sum) + 0.5f : (sum) - 0.5f);
 		}
 		return clip;
 	}
 
-	private <T> void WRITE_SAMPLE_UNCLIPPED(int samples, float sum, int clip,
-			short[] out, Decode.FactoryFloatToShort tFactory) {
-		out[samples] = tFactory.create(sum);
+	private void WRITE_SAMPLE_UNCLIPPED(int samples, float sum, int clip, float[] out) {
+		out[samples] = sum;
 	}
 
 	<T>int synth_1to1_mono(mpstr_tag mp, float[] bandPtr, int bandPos, short[] out,
@@ -96,18 +93,15 @@ public class Decode {
 
 		return ret;
 	}
-	
+
 	<T> int synth_1to1_mono_unclipped(mpstr_tag mp, float[] bandPtr,
-			int bandPos, short[] out, ProcessedBytes pnt,
-									  Decode.FactoryFloatToShort tFactory) {
-		@SuppressWarnings("unchecked")
-		short[] samples_tmp = new short[64];
+			int bandPos, float[] out, ProcessedBytes pnt) {
+		float[] samples_tmp = new float[64];
 		int tmp1 = 0;
 		int i, ret;
 		ProcessedBytes pnt1 = new ProcessedBytes();
 
-		ret = synth_1to1_unclipped(mp, bandPtr, bandPos, 0, samples_tmp,
-				pnt1, tFactory);
+		ret = synth_1to1_unclipped(mp, bandPtr, bandPos, 0, samples_tmp, pnt1);
 		int outPos = pnt.pb;
 
 		for (i = 0; i < 32; i++) {
@@ -160,38 +154,39 @@ public class Decode {
 			int j;
 			int window = 16 - bo1;
 
+			float[] decwin = tab.decwin;
 			for (j = 16; j != 0; j--, b0Pos += 0x10, window += 0x20, samples += step) {
 				float sum;
-				sum = tab.decwin[window + 0x0] * b0[b0Pos + 0x0];
-				sum -= tab.decwin[window + 0x1] * b0[b0Pos + 0x1];
-				sum += tab.decwin[window + 0x2] * b0[b0Pos + 0x2];
-				sum -= tab.decwin[window + 0x3] * b0[b0Pos + 0x3];
-				sum += tab.decwin[window + 0x4] * b0[b0Pos + 0x4];
-				sum -= tab.decwin[window + 0x5] * b0[b0Pos + 0x5];
-				sum += tab.decwin[window + 0x6] * b0[b0Pos + 0x6];
-				sum -= tab.decwin[window + 0x7] * b0[b0Pos + 0x7];
-				sum += tab.decwin[window + 0x8] * b0[b0Pos + 0x8];
-				sum -= tab.decwin[window + 0x9] * b0[b0Pos + 0x9];
-				sum += tab.decwin[window + 0xA] * b0[b0Pos + 0xA];
-				sum -= tab.decwin[window + 0xB] * b0[b0Pos + 0xB];
-				sum += tab.decwin[window + 0xC] * b0[b0Pos + 0xC];
-				sum -= tab.decwin[window + 0xD] * b0[b0Pos + 0xD];
-				sum += tab.decwin[window + 0xE] * b0[b0Pos + 0xE];
-				sum -= tab.decwin[window + 0xF] * b0[b0Pos + 0xF];
-				clip = WRITE_SAMPLE_CLIPPED(samples, sum, clip, out, tFactory);
+				sum = decwin[window + 0x0] * b0[b0Pos + 0x0];
+				sum -= decwin[window + 0x1] * b0[b0Pos + 0x1];
+				sum += decwin[window + 0x2] * b0[b0Pos + 0x2];
+				sum -= decwin[window + 0x3] * b0[b0Pos + 0x3];
+				sum += decwin[window + 0x4] * b0[b0Pos + 0x4];
+				sum -= decwin[window + 0x5] * b0[b0Pos + 0x5];
+				sum += decwin[window + 0x6] * b0[b0Pos + 0x6];
+				sum -= decwin[window + 0x7] * b0[b0Pos + 0x7];
+				sum += decwin[window + 0x8] * b0[b0Pos + 0x8];
+				sum -= decwin[window + 0x9] * b0[b0Pos + 0x9];
+				sum += decwin[window + 0xA] * b0[b0Pos + 0xA];
+				sum -= decwin[window + 0xB] * b0[b0Pos + 0xB];
+				sum += decwin[window + 0xC] * b0[b0Pos + 0xC];
+				sum -= decwin[window + 0xD] * b0[b0Pos + 0xD];
+				sum += decwin[window + 0xE] * b0[b0Pos + 0xE];
+				sum -= decwin[window + 0xF] * b0[b0Pos + 0xF];
+				clip = WRITE_SAMPLE_CLIPPED(samples, sum, clip, out);
 			}
 
 			{
 				float sum;
-				sum = tab.decwin[window + 0x0] * b0[b0Pos + 0x0];
-				sum += tab.decwin[window + 0x2] * b0[b0Pos + 0x2];
-				sum += tab.decwin[window + 0x4] * b0[b0Pos + 0x4];
-				sum += tab.decwin[window + 0x6] * b0[b0Pos + 0x6];
-				sum += tab.decwin[window + 0x8] * b0[b0Pos + 0x8];
-				sum += tab.decwin[window + 0xA] * b0[b0Pos + 0xA];
-				sum += tab.decwin[window + 0xC] * b0[b0Pos + 0xC];
-				sum += tab.decwin[window + 0xE] * b0[b0Pos + 0xE];
-				clip = WRITE_SAMPLE_CLIPPED(samples, sum, clip, out, tFactory);
+				sum = decwin[window + 0x0] * b0[b0Pos + 0x0];
+				sum += decwin[window + 0x2] * b0[b0Pos + 0x2];
+				sum += decwin[window + 0x4] * b0[b0Pos + 0x4];
+				sum += decwin[window + 0x6] * b0[b0Pos + 0x6];
+				sum += decwin[window + 0x8] * b0[b0Pos + 0x8];
+				sum += decwin[window + 0xA] * b0[b0Pos + 0xA];
+				sum += decwin[window + 0xC] * b0[b0Pos + 0xC];
+				sum += decwin[window + 0xE] * b0[b0Pos + 0xE];
+				clip = WRITE_SAMPLE_CLIPPED(samples, sum, clip, out);
 				b0Pos -= 0x10;
 				window -= 0x20;
 				samples += step;
@@ -200,24 +195,24 @@ public class Decode {
 
 			for (j = 15; j != 0; j--, b0Pos -= 0x10, window -= 0x20, samples += step) {
 				float sum;
-				sum = -tab.decwin[window + -0x1] * b0[b0Pos + 0x0];
-				sum -= tab.decwin[window + -0x2] * b0[b0Pos + 0x1];
-				sum -= tab.decwin[window + -0x3] * b0[b0Pos + 0x2];
-				sum -= tab.decwin[window + -0x4] * b0[b0Pos + 0x3];
-				sum -= tab.decwin[window + -0x5] * b0[b0Pos + 0x4];
-				sum -= tab.decwin[window + -0x6] * b0[b0Pos + 0x5];
-				sum -= tab.decwin[window + -0x7] * b0[b0Pos + 0x6];
-				sum -= tab.decwin[window + -0x8] * b0[b0Pos + 0x7];
-				sum -= tab.decwin[window + -0x9] * b0[b0Pos + 0x8];
-				sum -= tab.decwin[window + -0xA] * b0[b0Pos + 0x9];
-				sum -= tab.decwin[window + -0xB] * b0[b0Pos + 0xA];
-				sum -= tab.decwin[window + -0xC] * b0[b0Pos + 0xB];
-				sum -= tab.decwin[window + -0xD] * b0[b0Pos + 0xC];
-				sum -= tab.decwin[window + -0xE] * b0[b0Pos + 0xD];
-				sum -= tab.decwin[window + -0xF] * b0[b0Pos + 0xE];
-				sum -= tab.decwin[window + -0x0] * b0[b0Pos + 0xF];
+				sum = -decwin[window + -0x1] * b0[b0Pos + 0x0];
+				sum -= decwin[window + -0x2] * b0[b0Pos + 0x1];
+				sum -= decwin[window + -0x3] * b0[b0Pos + 0x2];
+				sum -= decwin[window + -0x4] * b0[b0Pos + 0x3];
+				sum -= decwin[window + -0x5] * b0[b0Pos + 0x4];
+				sum -= decwin[window + -0x6] * b0[b0Pos + 0x5];
+				sum -= decwin[window + -0x7] * b0[b0Pos + 0x6];
+				sum -= decwin[window + -0x8] * b0[b0Pos + 0x7];
+				sum -= decwin[window + -0x9] * b0[b0Pos + 0x8];
+				sum -= decwin[window + -0xA] * b0[b0Pos + 0x9];
+				sum -= decwin[window + -0xB] * b0[b0Pos + 0xA];
+				sum -= decwin[window + -0xC] * b0[b0Pos + 0xB];
+				sum -= decwin[window + -0xD] * b0[b0Pos + 0xC];
+				sum -= decwin[window + -0xE] * b0[b0Pos + 0xD];
+				sum -= decwin[window + -0xF] * b0[b0Pos + 0xE];
+				sum -= decwin[window + -0x0] * b0[b0Pos + 0xF];
 
-				clip = WRITE_SAMPLE_CLIPPED(samples, sum, clip, out, tFactory);
+				clip = WRITE_SAMPLE_CLIPPED(samples, sum, clip, out);
 			}
 		}
 		pnt.pb += 64;
@@ -225,8 +220,8 @@ public class Decode {
 		return clip;
 	}
 
-	<T>int
-	synth_1to1_unclipped(mpstr_tag mp, float[] bandPtr, int bandPos, int channel, short[] out, ProcessedBytes pnt, Decode.FactoryFloatToShort tFactory)
+	int
+	synth_1to1_unclipped(mpstr_tag mp, float[] bandPtr, int bandPos, int channel, float[] out, ProcessedBytes pnt)
 	{
 		int bo;
 		int samples = pnt.pb;
@@ -265,38 +260,39 @@ public class Decode {
 			int j;
 			int window = 16 - bo1;
 
+			float[] decwin = tab.decwin;
 			for (j = 16; j != 0; j--, b0Pos += 0x10, window += 0x20, samples += step) {
 				float sum;
-				sum = tab.decwin[window + 0x0] * b0[b0Pos + 0x0];
-				sum -= tab.decwin[window + 0x1] * b0[b0Pos + 0x1];
-				sum += tab.decwin[window + 0x2] * b0[b0Pos + 0x2];
-				sum -= tab.decwin[window + 0x3] * b0[b0Pos + 0x3];
-				sum += tab.decwin[window + 0x4] * b0[b0Pos + 0x4];
-				sum -= tab.decwin[window + 0x5] * b0[b0Pos + 0x5];
-				sum += tab.decwin[window + 0x6] * b0[b0Pos + 0x6];
-				sum -= tab.decwin[window + 0x7] * b0[b0Pos + 0x7];
-				sum += tab.decwin[window + 0x8] * b0[b0Pos + 0x8];
-				sum -= tab.decwin[window + 0x9] * b0[b0Pos + 0x9];
-				sum += tab.decwin[window + 0xA] * b0[b0Pos + 0xA];
-				sum -= tab.decwin[window + 0xB] * b0[b0Pos + 0xB];
-				sum += tab.decwin[window + 0xC] * b0[b0Pos + 0xC];
-				sum -= tab.decwin[window + 0xD] * b0[b0Pos + 0xD];
-				sum += tab.decwin[window + 0xE] * b0[b0Pos + 0xE];
-				sum -= tab.decwin[window + 0xF] * b0[b0Pos + 0xF];
-				WRITE_SAMPLE_UNCLIPPED(samples, sum, clip, out, tFactory);
+				sum = decwin[window + 0x0] * b0[b0Pos + 0x0];
+				sum -= decwin[window + 0x1] * b0[b0Pos + 0x1];
+				sum += decwin[window + 0x2] * b0[b0Pos + 0x2];
+				sum -= decwin[window + 0x3] * b0[b0Pos + 0x3];
+				sum += decwin[window + 0x4] * b0[b0Pos + 0x4];
+				sum -= decwin[window + 0x5] * b0[b0Pos + 0x5];
+				sum += decwin[window + 0x6] * b0[b0Pos + 0x6];
+				sum -= decwin[window + 0x7] * b0[b0Pos + 0x7];
+				sum += decwin[window + 0x8] * b0[b0Pos + 0x8];
+				sum -= decwin[window + 0x9] * b0[b0Pos + 0x9];
+				sum += decwin[window + 0xA] * b0[b0Pos + 0xA];
+				sum -= decwin[window + 0xB] * b0[b0Pos + 0xB];
+				sum += decwin[window + 0xC] * b0[b0Pos + 0xC];
+				sum -= decwin[window + 0xD] * b0[b0Pos + 0xD];
+				sum += decwin[window + 0xE] * b0[b0Pos + 0xE];
+				sum -= decwin[window + 0xF] * b0[b0Pos + 0xF];
+				WRITE_SAMPLE_UNCLIPPED(samples, sum, clip, out);
 			}
 
 			{
 				float sum;
-				sum = tab.decwin[window + 0x0] * b0[b0Pos + 0x0];
-				sum += tab.decwin[window + 0x2] * b0[b0Pos + 0x2];
-				sum += tab.decwin[window + 0x4] * b0[b0Pos + 0x4];
-				sum += tab.decwin[window + 0x6] * b0[b0Pos + 0x6];
-				sum += tab.decwin[window + 0x8] * b0[b0Pos + 0x8];
-				sum += tab.decwin[window + 0xA] * b0[b0Pos + 0xA];
-				sum += tab.decwin[window + 0xC] * b0[b0Pos + 0xC];
-				sum += tab.decwin[window + 0xE] * b0[b0Pos + 0xE];
-				WRITE_SAMPLE_UNCLIPPED(samples, sum, clip, out, tFactory);
+				sum = decwin[window + 0x0] * b0[b0Pos + 0x0];
+				sum += decwin[window + 0x2] * b0[b0Pos + 0x2];
+				sum += decwin[window + 0x4] * b0[b0Pos + 0x4];
+				sum += decwin[window + 0x6] * b0[b0Pos + 0x6];
+				sum += decwin[window + 0x8] * b0[b0Pos + 0x8];
+				sum += decwin[window + 0xA] * b0[b0Pos + 0xA];
+				sum += decwin[window + 0xC] * b0[b0Pos + 0xC];
+				sum += decwin[window + 0xE] * b0[b0Pos + 0xE];
+				WRITE_SAMPLE_UNCLIPPED(samples, sum, clip, out);
 				b0Pos -= 0x10;
 				window -= 0x20;
 				samples += step;
@@ -305,24 +301,24 @@ public class Decode {
 
 			for (j = 15; j != 0; j--, b0Pos -= 0x10, window -= 0x20, samples += step) {
 				float sum;
-				sum = -tab.decwin[window + -0x1] * b0[b0Pos + 0x0];
-				sum -= tab.decwin[window + -0x2] * b0[b0Pos + 0x1];
-				sum -= tab.decwin[window + -0x3] * b0[b0Pos + 0x2];
-				sum -= tab.decwin[window + -0x4] * b0[b0Pos + 0x3];
-				sum -= tab.decwin[window + -0x5] * b0[b0Pos + 0x4];
-				sum -= tab.decwin[window + -0x6] * b0[b0Pos + 0x5];
-				sum -= tab.decwin[window + -0x7] * b0[b0Pos + 0x6];
-				sum -= tab.decwin[window + -0x8] * b0[b0Pos + 0x7];
-				sum -= tab.decwin[window + -0x9] * b0[b0Pos + 0x8];
-				sum -= tab.decwin[window + -0xA] * b0[b0Pos + 0x9];
-				sum -= tab.decwin[window + -0xB] * b0[b0Pos + 0xA];
-				sum -= tab.decwin[window + -0xC] * b0[b0Pos + 0xB];
-				sum -= tab.decwin[window + -0xD] * b0[b0Pos + 0xC];
-				sum -= tab.decwin[window + -0xE] * b0[b0Pos + 0xD];
-				sum -= tab.decwin[window + -0xF] * b0[b0Pos + 0xE];
-				sum -= tab.decwin[window + -0x0] * b0[b0Pos + 0xF];
+				sum = -decwin[window + -0x1] * b0[b0Pos + 0x0];
+				sum -= decwin[window + -0x2] * b0[b0Pos + 0x1];
+				sum -= decwin[window + -0x3] * b0[b0Pos + 0x2];
+				sum -= decwin[window + -0x4] * b0[b0Pos + 0x3];
+				sum -= decwin[window + -0x5] * b0[b0Pos + 0x4];
+				sum -= decwin[window + -0x6] * b0[b0Pos + 0x5];
+				sum -= decwin[window + -0x7] * b0[b0Pos + 0x6];
+				sum -= decwin[window + -0x8] * b0[b0Pos + 0x7];
+				sum -= decwin[window + -0x9] * b0[b0Pos + 0x8];
+				sum -= decwin[window + -0xA] * b0[b0Pos + 0x9];
+				sum -= decwin[window + -0xB] * b0[b0Pos + 0xA];
+				sum -= decwin[window + -0xC] * b0[b0Pos + 0xB];
+				sum -= decwin[window + -0xD] * b0[b0Pos + 0xC];
+				sum -= decwin[window + -0xE] * b0[b0Pos + 0xD];
+				sum -= decwin[window + -0xF] * b0[b0Pos + 0xE];
+				sum -= decwin[window + -0x0] * b0[b0Pos + 0xF];
 
-				WRITE_SAMPLE_UNCLIPPED(samples, sum, clip, out, tFactory);
+				WRITE_SAMPLE_UNCLIPPED(samples, sum, clip, out);
 			}
 		}
 		pnt.pb += 64;

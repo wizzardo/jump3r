@@ -26,6 +26,8 @@
 /* $Id: Encoder.java,v 1.21 2011/05/24 21:45:14 kenchis Exp $ */
 package de.sciss.jump3r.mp3;
 
+import de.sciss.jump3r.LocalVars;
+
 public class Encoder {
 	BitStream bs;
 	public PsyModel psy;
@@ -382,24 +384,72 @@ public class Encoder {
 			-0.0432472f * 5, -0.031183f * 5, 7.79609e-18f * 5, 0.0467745f * 5,
 			0.10091f * 5, 0.151365f * 5, 0.187098f * 5 };
 
+
+	LocalVars.LocalVar<III_psy_ratio[][]> masking_LRTL = new LocalVars.LocalVar<III_psy_ratio[][]>() {
+		@Override
+		protected III_psy_ratio[][] initialValue() {
+			III_psy_ratio masking_LR[][] = new III_psy_ratio[2][2];
+			masking_LR[0][0] = new III_psy_ratio();
+			masking_LR[0][1] = new III_psy_ratio();
+			masking_LR[1][0] = new III_psy_ratio();
+			masking_LR[1][1] = new III_psy_ratio();
+			return masking_LR;
+		}
+
+		@Override
+		public III_psy_ratio[][] get() {
+			III_psy_ratio[][] arrs = super.get();
+			for (III_psy_ratio[] arr : arrs) {
+				for (III_psy_ratio a : arr) {
+					a.clear();
+				}
+			}
+			return arrs;
+		}
+	};
+	LocalVars.LocalVar<III_psy_ratio[][]> masking_MSTL = new LocalVars.LocalVar<III_psy_ratio[][]>() {
+		@Override
+		protected III_psy_ratio[][] initialValue() {
+			III_psy_ratio masking_LR[][] = new III_psy_ratio[2][2];
+			masking_LR[0][0] = new III_psy_ratio();
+			masking_LR[0][1] = new III_psy_ratio();
+			masking_LR[1][0] = new III_psy_ratio();
+			masking_LR[1][1] = new III_psy_ratio();
+			return masking_LR;
+		}
+
+		@Override
+		public III_psy_ratio[][] get() {
+			III_psy_ratio[][] arrs = super.get();
+			for (III_psy_ratio[] arr : arrs) {
+				for (III_psy_ratio a : arr) {
+					a.clear();
+				}
+			}
+			return arrs;
+		}
+	};
+
 	public final int lame_encode_mp3_frame(final LameGlobalFlags gfp,
 			final float[] inbuf_l, final float[] inbuf_r, byte[] mp3buf,
 			int mp3bufPos, int mp3buf_size) {
 		int mp3count;
-		III_psy_ratio masking_LR[][] = new III_psy_ratio[2][2]; /*
-																 * LR masking &
-																 * energy
-																 */
-		masking_LR[0][0] = new III_psy_ratio();
-		masking_LR[0][1] = new III_psy_ratio();
-		masking_LR[1][0] = new III_psy_ratio();
-		masking_LR[1][1] = new III_psy_ratio();
-		III_psy_ratio masking_MS[][] = new III_psy_ratio[2][2];
-		/* MS masking & energy */
-		masking_MS[0][0] = new III_psy_ratio();
-		masking_MS[0][1] = new III_psy_ratio();
-		masking_MS[1][0] = new III_psy_ratio();
-		masking_MS[1][1] = new III_psy_ratio();
+		III_psy_ratio masking_LR[][] = masking_LRTL.get(); /*
+//		III_psy_ratio masking_LR[][] = new III_psy_ratio[2][2]; /*
+//																 * LR masking &
+//																 * energy
+//																 */
+//		masking_LR[0][0] = new III_psy_ratio();
+//		masking_LR[0][1] = new III_psy_ratio();
+//		masking_LR[1][0] = new III_psy_ratio();
+//		masking_LR[1][1] = new III_psy_ratio();
+//		III_psy_ratio masking_MS[][] = new III_psy_ratio[2][2];
+		III_psy_ratio masking_MS[][] = masking_MSTL.get();
+//		/* MS masking & energy */
+//		masking_MS[0][0] = new III_psy_ratio();
+//		masking_MS[0][1] = new III_psy_ratio();
+//		masking_MS[1][0] = new III_psy_ratio();
+//		masking_MS[1][1] = new III_psy_ratio();
 		III_psy_ratio masking[][];
 		/* pointer to selected maskings */
 		final float[] inbuf[] = new float[2][];

@@ -24,6 +24,8 @@
 
 package de.sciss.jump3r.mp3;
 
+import de.sciss.jump3r.LocalVars;
+
 import java.util.Arrays;
 
 public class VBRQuantize {
@@ -213,6 +215,29 @@ public class VBRQuantize {
 		return false;
 	}
 
+
+	LocalVars.LocalVar<CalcNoiseCache[]> calcNoiseCacheTL = new LocalVars.LocalVar<CalcNoiseCache[]>() {
+        @Override
+        protected CalcNoiseCache[] initialValue() {
+            CalcNoiseCache[] values = new CalcNoiseCache[256];
+            for (int i = 0; i < values.length; i++) {
+                values[i] = new CalcNoiseCache();
+            }
+            return values;
+        }
+
+        @Override
+        public CalcNoiseCache[] get() {
+            CalcNoiseCache[] values = super.get();
+            for (int i = 0; i < values.length; i++) {
+                CalcNoiseCache value = values[i];
+                value.valid = 0;
+                value.value = 0;
+            }
+            return values;
+        }
+    };
+
 	/**
 	 * the find_scalefac* routines calculate a quantization step size which
 	 * would introduce as much noise as is allowed. The larger the step size the
@@ -222,11 +247,12 @@ public class VBRQuantize {
 	 */
 	private int find_scalefac_x34(final float[] xr, final float[] xr34,
 			final int xrPos, final float l3_xmin, final int bw, final int sf_min) {
-		CalcNoiseCache did_it[] = new CalcNoiseCache[256];
+//		CalcNoiseCache did_it[] = new CalcNoiseCache[256];
+		CalcNoiseCache did_it[] = calcNoiseCacheTL.get();
 		int sf = 128, sf_ok = 255, delsf = 128, seen_good_one = 0, i;
-		for (int j = 0; j < did_it.length; j++) {
-			did_it[j] = new CalcNoiseCache();
-		}
+//		for (int j = 0; j < did_it.length; j++) {
+//			did_it[j] = new CalcNoiseCache();
+//		}
 		for (i = 0; i < 8; ++i) {
 			delsf >>= 1;
 			if (sf <= sf_min) {
@@ -255,11 +281,11 @@ public class VBRQuantize {
 	}
 
 	/**
-	 * 
+	 *
 	 * calc_short_block_vbr_sf(), calc_long_block_vbr_sf()
-	 * 
+	 *
 	 * a variation for vbr-mtrh
-	 * 
+	 *
 	 * @author Mark Taylor 2000-??-??
 	 * @author Robert Hegemann 2000-10-25 made functions of it
 	 */
@@ -332,9 +358,9 @@ public class VBRQuantize {
 
 	/**
 	 * quantize xr34 based on scalefactors
-	 * 
+	 *
 	 * block_xr34
-	 * 
+	 *
 	 * @author Mark Taylor 2000-??-??
 	 * @author Robert Hegemann 2000-10-20 made functions of them
 	 */
@@ -785,11 +811,16 @@ public class VBRQuantize {
 		return cod_info.part2_3_length + cod_info.part2_length;
 	}
 
+	LocalVars.LocalVar<int[][][]> sfwork_TL = LocalVars.createIntArray3(new int[2][2][L3Side.SFBMAX]);
+	LocalVars.LocalVar<int[][][]> vbrsfmin_TL = LocalVars.createIntArray3(new int[2][2][L3Side.SFBMAX]);
+
 	public int VBR_encode_frame(final LameInternalFlags gfc,
 			final float xr34orig[][][], final float l3_xmin[][][],
 			final int max_bits[][]) {
-		int sfwork_[][][] = new int[2][2][L3Side.SFBMAX];
-		int vbrsfmin_[][][] = new int[2][2][L3Side.SFBMAX];
+//		int sfwork_[][][] = new int[2][2][L3Side.SFBMAX];
+//		int vbrsfmin_[][][] = new int[2][2][L3Side.SFBMAX];
+		int sfwork_[][][] = sfwork_TL.get();
+		int vbrsfmin_[][][] = vbrsfmin_TL.get();
 		algo_t that_[][] = new algo_t[2][2];
 		final int ngr = gfc.mode_gr;
 		final int nch = gfc.channels_out;
@@ -890,7 +921,7 @@ public class VBRQuantize {
 						/*
 						 * violates the rule that every gr_ch has to use no more
 						 * bits than MAX_BITS_PER_CHANNEL
-						 * 
+						 *
 						 * This isn't explicitly stated in the ISO docs, but the
 						 * part2_3_length field has only 12 bits, that makes it
 						 * up to a maximum size of 4095 bits!!!

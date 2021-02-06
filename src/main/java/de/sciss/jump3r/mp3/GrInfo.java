@@ -1,5 +1,7 @@
 package de.sciss.jump3r.mp3;
 
+import java.util.Arrays;
+
 public final class GrInfo {
 	float xr[] = new float[576];
 	int l3_enc[] = new int[576];
@@ -40,9 +42,9 @@ public final class GrInfo {
 	int max_nonzero_coeff;
 
 	public final void assign(final GrInfo other) {
-		xr = other.xr.clone();
-		l3_enc = other.l3_enc.clone();
-		scalefac = other.scalefac.clone();
+		System.arraycopy(other.xr, 0, xr, 0, xr.length);
+		System.arraycopy(other.l3_enc, 0, l3_enc, 0, l3_enc.length);
+		System.arraycopy(other.scalefac, 0, scalefac, 0, scalefac.length);
 		xrpow_max = other.xrpow_max;
 
 		part2_3_length = other.part2_3_length;
@@ -52,8 +54,8 @@ public final class GrInfo {
 		scalefac_compress = other.scalefac_compress;
 		block_type = other.block_type;
 		mixed_block_flag = other.mixed_block_flag;
-		table_select = other.table_select.clone();
-		subblock_gain = other.subblock_gain.clone();
+		System.arraycopy(other.table_select, 0, table_select, 0, table_select.length);
+		System.arraycopy(other.subblock_gain, 0, subblock_gain, 0, subblock_gain.length);
 		region0_count = other.region0_count;
 		region1_count = other.region1_count;
 		preflag = other.preflag;
@@ -67,12 +69,55 @@ public final class GrInfo {
 		sfbmax = other.sfbmax;
 		psymax = other.psymax;
 		sfbdivide = other.sfbdivide;
-		width = other.width.clone();
-		window = other.window.clone();
+		System.arraycopy(other.width, 0, width, 0, width.length);
+		System.arraycopy(other.window, 0, window, 0, window.length);
 		count1bits = other.count1bits;
 
-		sfb_partition_table = other.sfb_partition_table.clone();
-		slen = other.slen.clone();
+		if (sfb_partition_table != null && other.sfb_partition_table.length == sfb_partition_table.length) {
+			System.arraycopy(other.sfb_partition_table, 0, sfb_partition_table, 0, sfb_partition_table.length);
+		} else {
+			sfb_partition_table = other.sfb_partition_table.clone();
+		}
+		System.arraycopy(other.slen, 0, slen, 0, slen.length);
 		max_nonzero_coeff = other.max_nonzero_coeff;
+	}
+
+	public GrInfo clear() {
+		Arrays.fill(xr, 0f);
+		Arrays.fill(l3_enc, 0);
+		Arrays.fill(scalefac, 0);
+		xrpow_max = 0;
+
+		part2_3_length = 0;
+		big_values = 0;
+		count1 = 0;
+		global_gain = 0;
+		scalefac_compress = 0;
+		block_type = 0;
+		mixed_block_flag = 0;
+		Arrays.fill(table_select, 0);
+		Arrays.fill(subblock_gain, 0);
+		region0_count = 0;
+		region1_count = 0;
+		preflag = 0;
+		scalefac_scale = 0;
+		count1table_select = 0;
+
+		part2_length = 0;
+		sfb_lmax = 0;
+		sfb_smin = 0;
+		psy_lmax = 0;
+		sfbmax = 0;
+		psymax = 0;
+		sfbdivide = 0;
+		Arrays.fill(width, 0);
+		Arrays.fill(window, 0);
+		count1bits = 0;
+
+		if (sfb_partition_table != null)
+			Arrays.fill(sfb_partition_table, 0);
+		Arrays.fill(slen, 0);
+		max_nonzero_coeff = 0;
+		return this;
 	}
 }

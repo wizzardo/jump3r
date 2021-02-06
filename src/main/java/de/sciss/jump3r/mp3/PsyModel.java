@@ -138,6 +138,8 @@ blocktype_d[2]        block type to use for previous granule
 */
 package de.sciss.jump3r.mp3;
 
+import de.sciss.jump3r.LocalVars;
+
 import java.util.Arrays;
 
 public class PsyModel {
@@ -1485,6 +1487,8 @@ public class PsyModel {
 			-3.36639e-17f * 2, -0.0438162f * 2, -1.54175e-17f * 2,
 			0.0931738f * 2, -5.52212e-17f * 2, -0.313819f * 2 };
 
+	LocalVars.LocalVar<float[][]> ns_hpfsmplTL = LocalVars.createFloatArray2(new float[2][576]);
+
 	/**
 	 * Apply HPF of fs/4 to the input signal. This is used for attack detection
 	 * / handling.
@@ -1495,7 +1499,8 @@ public class PsyModel {
 			final III_psy_ratio masking_MS_ratio[][],
 			final float energy[], float sub_short_factor[][],
 			final int ns_attacks[][], final int uselongblock[]) {
-		float ns_hpfsmpl[][] = new float[2][576];
+//		float ns_hpfsmpl[][] = new float[2][576];
+		float ns_hpfsmpl[][] = ns_hpfsmplTL.get();
 		final LameInternalFlags gfc = gfp.internal_flags;
 		int n_chn_out = gfc.channels_out;
 		/* chn=2 and 3 = Mid and Side channels */
@@ -1847,11 +1852,16 @@ public class PsyModel {
 		}
 	}
 
+	LocalVars.LocalVar<float[]> maxTL = LocalVars.createFloatArray(new float[Encoder.CBANDS]);
+	LocalVars.LocalVar<float[]> avgTL = LocalVars.createFloatArray(new float[Encoder.CBANDS]);
+	LocalVars.LocalVar<int[]> mask_idx_lTL = LocalVars.createIntArray(new int[Encoder.CBANDS + 2]);
+
 	private void vbrpsy_compute_masking_l(final LameInternalFlags gfc,
 			final float fftenergy[], final float eb_l[], final float thr[],
 			final int chn) {
-		float max[] = new float[Encoder.CBANDS], avg[] = new float[Encoder.CBANDS];
-		int mask_idx_l[] = new int[Encoder.CBANDS + 2];
+		float[] max = maxTL.get();
+		float[] avg = avgTL.get();
+		int mask_idx_l[] = mask_idx_lTL.get();
 		int b;
 
 		/*********************************************************************
@@ -2085,6 +2095,15 @@ public class PsyModel {
 		}
 	}
 
+	LocalVars.LocalVar<float[]> fftenergyTL = LocalVars.createFloatArray(new float[Encoder.HBLKSIZE]);
+	LocalVars.LocalVar<float[][]> fftenergy_sTL = LocalVars.createFloatArray2(new float[3][Encoder.HBLKSIZE_s]);
+	LocalVars.LocalVar<float[][]> wsamp_LTL = LocalVars.createFloatArray2(new float[2][Encoder.BLKSIZE]);
+	LocalVars.LocalVar<float[][]> ebTL = LocalVars.createFloatArray2(new float[4][Encoder.CBANDS]);
+	LocalVars.LocalVar<float[][]> thrTL = LocalVars.createFloatArray2(new float[4][Encoder.CBANDS]);
+	LocalVars.LocalVar<float[][][]> wsamp_STL = LocalVars.createFloatArray3(new float[2][3][Encoder.BLKSIZE_s]);
+	LocalVars.LocalVar<float[][]> sub_short_factorTL = LocalVars.createFloatArray2(new float[4][3]);
+	LocalVars.LocalVar<int[][]> ns_attacksTL = LocalVars.createIntArray2(new int[][]{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}});
+
 	public final int L3psycho_anal_vbr(final LameGlobalFlags gfp,
 			final float[] buffer[], final int bufPos, final int gr_out,
 			final III_psy_ratio masking_ratio[][],
@@ -2096,18 +2115,26 @@ public class PsyModel {
 		/* fft and energy calculation */
 		float wsamp_l[][];
 		float wsamp_s[][][];
-		float fftenergy[] = new float[Encoder.HBLKSIZE];
-		float fftenergy_s[][] = new float[3][Encoder.HBLKSIZE_s];
-		float wsamp_L[][] = new float[2][Encoder.BLKSIZE];
-		float wsamp_S[][][] = new float[2][3][Encoder.BLKSIZE_s];
-		float eb[][] = new float[4][Encoder.CBANDS], thr[][] = new float[4][Encoder.CBANDS];
+//		float fftenergy[] = new float[Encoder.HBLKSIZE];
+//		float fftenergy_s[][] = new float[3][Encoder.HBLKSIZE_s];
+//		float wsamp_L[][] = new float[2][Encoder.BLKSIZE];
+//		float wsamp_S[][][] = new float[2][3][Encoder.BLKSIZE_s];
+//		float eb[][] = new float[4][Encoder.CBANDS];
+//		float thr[][] = new float[4][Encoder.CBANDS];
+		float fftenergy[] = fftenergyTL.get();
+		float fftenergy_s[][] = fftenergy_sTL.get();
+		float wsamp_L[][] = wsamp_LTL.get();
+		float wsamp_S[][][] = wsamp_STL.get();
+		float eb[][] = ebTL.get();
+		float thr[][] = thrTL.get();
 
-		float sub_short_factor[][] = new float[4][3];
+//		float sub_short_factor[][] = new float[4][3];
+		float sub_short_factor[][] = sub_short_factorTL.get();
 		float pcfact = 0.6f;
 
 		/* block type */
-		int ns_attacks[][] = { { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },
-				{ 0, 0, 0, 0 } };
+//		int ns_attacks[][] = new int[][]{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
+		int ns_attacks[][] = ns_attacksTL.get();
 		int uselongblock[] = new int[2];
 
 		/* usual variables like loop indices, etc.. */
@@ -2200,8 +2227,8 @@ public class PsyModel {
 				if (uselongblock[ch01] != 0) {
 					continue;
 				}
+				float new_thmm[] = new float[3];
 				for (int sb = 0; sb < Encoder.SBMAX_s; sb++) {
-					float new_thmm[] = new float[3];
 					for (int sblock = 0; sblock < 3; sblock++) {
 						float thmm = gfc.thm[chn].s[sb][sblock];
 						thmm *= NS_PREECHO_ATT0;

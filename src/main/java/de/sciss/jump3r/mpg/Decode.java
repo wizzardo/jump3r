@@ -47,10 +47,17 @@ public class Decode {
 	interface Factory<T> {
 		public T create(float x);
 	}
+
+	interface FactoryFloatToShort {
+		public short create(float x);
+	}
+	interface FactoryFloatToFloat {
+		public float create(float x);
+	}
 	
 	/* old WRITE_SAMPLE_CLIPPED */
-	private <T> int WRITE_SAMPLE_CLIPPED(int samples, float sum, int clip,
-			T[] out, Factory<T> tFactory) {
+	private int WRITE_SAMPLE_CLIPPED(int samples, float sum, int clip,
+			short[] out, Decode.FactoryFloatToShort tFactory) {
 		/* old WRITE_SAMPLE_CLIPPED */
 		if ((sum) > 32767.0) {
 			out[samples] = tFactory.create(32767);
@@ -66,14 +73,14 @@ public class Decode {
 	}
 
 	private <T> void WRITE_SAMPLE_UNCLIPPED(int samples, float sum, int clip,
-			T[] out, Factory<T> tFactory) {
+			short[] out, Decode.FactoryFloatToShort tFactory) {
 		out[samples] = tFactory.create(sum);
 	}
 
-	<T>int synth_1to1_mono(mpstr_tag mp, float[] bandPtr, int bandPos, T[] out,
-			ProcessedBytes pnt, Factory<T> tFactory) {
+	<T>int synth_1to1_mono(mpstr_tag mp, float[] bandPtr, int bandPos, short[] out,
+			ProcessedBytes pnt, Decode.FactoryFloatToShort tFactory) {
 		@SuppressWarnings("unchecked")
-		T[] samples_tmp = (T[]) (new Object[64]);
+		short[] samples_tmp =  (new short[64]);
 		int tmp1 = 0;
 		int i, ret;
 		ProcessedBytes pnt1 = new ProcessedBytes();
@@ -91,10 +98,10 @@ public class Decode {
 	}
 	
 	<T> int synth_1to1_mono_unclipped(mpstr_tag mp, float[] bandPtr,
-			int bandPos, T[] out, ProcessedBytes pnt,
-			Factory<T> tFactory) {
+			int bandPos, short[] out, ProcessedBytes pnt,
+									  Decode.FactoryFloatToShort tFactory) {
 		@SuppressWarnings("unchecked")
-		T[] samples_tmp = (T[]) (new Object[64]);
+		short[] samples_tmp = new short[64];
 		int tmp1 = 0;
 		int i, ret;
 		ProcessedBytes pnt1 = new ProcessedBytes();
@@ -115,7 +122,7 @@ public class Decode {
 	private static final int step = 2;
 
 	<T>int synth_1to1(mpstr_tag mp, float[] bandPtr, int bandPos, int channel,
-			T[] out, ProcessedBytes pnt, Factory<T> tFactory) {
+			short[] out, ProcessedBytes pnt, Decode.FactoryFloatToShort tFactory) {
 		int bo;
 		int samples = pnt.pb;
 		float[] b0;
@@ -219,7 +226,7 @@ public class Decode {
 	}
 
 	<T>int
-	synth_1to1_unclipped(mpstr_tag mp, float[] bandPtr, int bandPos, int channel, T[] out, ProcessedBytes pnt, Factory<T> tFactory)
+	synth_1to1_unclipped(mpstr_tag mp, float[] bandPtr, int bandPos, int channel, short[] out, ProcessedBytes pnt, Decode.FactoryFloatToShort tFactory)
 	{
 		int bo;
 		int samples = pnt.pb;

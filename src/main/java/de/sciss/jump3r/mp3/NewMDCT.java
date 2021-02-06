@@ -1036,6 +1036,7 @@ public class NewMDCT {
 			final float[] w1) {
 		float[] wk = w0;
 		int wkPos = 286;
+		float work[] = new float[18];
 		/* thinking cache performance, ch->gr loop is better than gr->ch loop */
 		for (int ch = 0; ch < gfc.channels_out; ch++) {
 			for (int gr = 0; gr < gfc.mode_gr; gr++) {
@@ -1095,7 +1096,8 @@ public class NewMDCT {
 							}
 							mdct_short(mdct_enc, mdct_encPos);
 						} else {
-							float work[] = new float[18];
+//							float work[] = new float[18];
+							Arrays.fill(work, 0);
 							for (int k = -NL / 4; k < 0; k++) {
 								float a, b;
 								a = win[type][k + 27]

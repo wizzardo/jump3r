@@ -23,6 +23,7 @@
 /* $Id: Layer3.java,v 1.19 2011/06/17 05:26:42 kenchis Exp $ */
 package de.sciss.jump3r.mpg;
 
+import de.sciss.jump3r.LocalVars;
 import de.sciss.jump3r.mpg.Decode.Factory;
 import de.sciss.jump3r.mpg.Huffman.newhuff;
 import de.sciss.jump3r.mpg.Interface.ISynth;
@@ -30,6 +31,8 @@ import de.sciss.jump3r.mpg.MPG123.III_sideinfo;
 import de.sciss.jump3r.mpg.MPG123.gr_info_s;
 import de.sciss.jump3r.mpg.MPGLib.ProcessedBytes;
 import de.sciss.jump3r.mpg.MPGLib.mpstr_tag;
+
+import java.util.Arrays;
 
 public class Layer3 {
 	private Common common;
@@ -1797,13 +1800,16 @@ public class Layer3 {
 
 	private float hybridIn[][]=new float[2][MPG123.SBLIMIT*MPG123.SSLIMIT];
 	private float hybridOut[][]=new float[2][MPG123.SSLIMIT*MPG123.SBLIMIT];
-    
+
+	LocalVars.LocalVar<int[][]> scalefacs = LocalVars.createIntArray2(new int[2][39]);
+
 	public <T>int
-	do_layer3(mpstr_tag mp, T[] pcm_sample, ProcessedBytes pcm_point,
-			ISynth synth, Factory<T> tFactory)
+	do_layer3(mpstr_tag mp, short[] pcm_sample, ProcessedBytes pcm_point,
+			ISynth synth, Decode.FactoryFloatToShort tFactory)
 	{
 	    int     gr, ch, ss, clip = 0;
-	    int     scalefacs[][]=new int[2][39]; /* max 39 for short[13][3] mode, mixed: 38, long: 22 */
+//	    int     scalefacs[][]=new int[2][39]; /* max 39 for short[13][3] mode, mixed: 38, long: 22 */
+	    int     scalefacs[][]=this.scalefacs.get(); /* max 39 for short[13][3] mode, mixed: 38, long: 22 */
 	    /*  struct III_sideinfo sideinfo; */
 	    Frame fr = (mp.fr);
 	    int     stereo = fr.stereo;
@@ -2000,12 +2006,12 @@ public class Layer3 {
 	            III_hybrid(mp, hybridIn[ch], hybridOut[ch], ch, gr_infos);
 	        }
 
+			ProcessedBytes p1 = new ProcessedBytes();
 	        for (ss = 0; ss < MPG123.SSLIMIT; ss++) {
 	            if (single >= 0) {
 	            	clip += synth.synth_1to1_mono_ptr(mp, hybridOut[0], ss*MPG123.SBLIMIT, pcm_sample, pcm_point, tFactory);
 	            }
 	            else {
-	            	ProcessedBytes p1 = new ProcessedBytes();
 	            	p1.pb = pcm_point.pb;
 	            	clip += synth.synth_1to1_ptr(mp, hybridOut[0], ss*MPG123.SBLIMIT, 0, pcm_sample, p1, tFactory);
 	            	clip += synth.synth_1to1_ptr(mp, hybridOut[1], ss*MPG123.SBLIMIT, 1, pcm_sample, pcm_point, tFactory);

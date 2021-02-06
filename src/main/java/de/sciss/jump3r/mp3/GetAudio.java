@@ -35,6 +35,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
+import de.sciss.jump3r.LocalVars;
 import de.sciss.jump3r.mpg.MPGLib;
 
 public class GetAudio {
@@ -134,6 +135,10 @@ public class GetAudio {
 		return (get_audio_common(gfp, null, buffer));
 	}
 
+
+	LocalVars.LocalVar<short[][]> buf_tmp16 = LocalVars.createShortArray2( new short[2][1152]);
+	LocalVars.LocalVar<int[]> insamp = LocalVars.createIntArray(new int[2 * 1152]);
+
 	/**
 	 * central functionality of get_audio* note: either buffer or buffer16 must
 	 * be allocated upon call
@@ -149,8 +154,10 @@ public class GetAudio {
 	private int get_audio_common(final LameGlobalFlags gfp,
 			final int buffer[][], final short buffer16[][]) {
 		int num_channels = gfp.num_channels;
-		int insamp[] = new int[2 * 1152];
-		short buf_tmp16[][] = new short[2][1152];
+//		int insamp[] = new int[2 * 1152];
+		int[] insamp = this.insamp.get();
+//		short buf_tmp16[][] = new short[2][1152];
+		short[][] buf_tmp16 = this.buf_tmp16.get();
 		int samples_read;
 		int framesize;
 		int samples_to_read;
@@ -1149,6 +1156,8 @@ public class GetAudio {
 		return 0;
 	}
 
+
+	LocalVars.LocalVar<byte[]> buf = LocalVars.createByteArray(new byte[1024]);
 	/**
 	 * @return -1 error n number of samples output. either 576 or 1152 depending
 	 *         on MP3 file.
@@ -1157,7 +1166,8 @@ public class GetAudio {
 			final short pcm_l[], final short pcm_r[], final MP3Data mp3data) {
 		int ret = 0;
 		int len = 0;
-		byte buf[] = new byte[1024];
+//		byte buf[] = new byte[1024];
+		byte buf[] = this.buf.get();
 
 		/* first see if we still have data buffered in the decoder: */
 		ret = -1;

@@ -366,13 +366,13 @@ public class Interface {
 	}
 
     interface ISynth {
-    	<T>int synth_1to1_mono_ptr (mpstr_tag mp, float[] in, int inPos, T[] out, ProcessedBytes p, Factory<T> tFactory);
-        <T>int synth_1to1_ptr (mpstr_tag mp, float[] in, int inPos, int i, T[] out, ProcessedBytes p, Factory<T> tFactory);
+    	<T>int synth_1to1_mono_ptr (mpstr_tag mp, float[] in, int inPos, short[] out, ProcessedBytes p, Decode.FactoryFloatToShort tFactory);
+        <T>int synth_1to1_ptr (mpstr_tag mp, float[] in, int inPos, int i, short[] out, ProcessedBytes p, Decode.FactoryFloatToShort tFactory);
     }
     
 	<T>int
-	decodeMP3_clipchoice(mpstr_tag mp, byte[] in, int inPos, int isize, T[] out, ProcessedBytes done,
-			ISynth synth, Factory<T> tFactory)
+	decodeMP3_clipchoice(mpstr_tag mp, byte[] in, int inPos, int isize, short[] out, ProcessedBytes done,
+			ISynth synth, Decode.FactoryFloatToShort tFactory)
 	{
 	    int     i, iret, bits, bytes;
 
@@ -640,7 +640,7 @@ public class Interface {
 	}
 
     <T>int
-    decodeMP3(MPGLib.mpstr_tag mp, byte []in, int bufferPos, int isize, T []out, int osize, ProcessedBytes done, Factory<T> tFactory)
+    decodeMP3(MPGLib.mpstr_tag mp, byte []in, int bufferPos, int isize, short[]out, int osize, ProcessedBytes done, Decode.FactoryFloatToShort tFactory)
     {
         if (osize < 2304) {
             System.err.printf("hip: Insufficient memory for decoding buffer %d\n", osize);
@@ -652,15 +652,15 @@ public class Interface {
 
 			@Override
 			public <X> int synth_1to1_mono_ptr(mpstr_tag mp, float[] in,
-					int inPos, X[] out, ProcessedBytes p,
-					Factory<X> tFactory) {
+					int inPos, short[] out, ProcessedBytes p,
+											   Decode.FactoryFloatToShort tFactory) {
 				return decode.synth_1to1_mono(mp, in, inPos, out, p, tFactory);
 			}
 
 			@Override
 			public <X> int synth_1to1_ptr(mpstr_tag mp, float[] in, int inPos,
-					int i, X[] out, ProcessedBytes p,
-					Factory<X> tFactory) {
+					int i, short[] out, ProcessedBytes p,
+										  Decode.FactoryFloatToShort tFactory) {
 				return decode.synth_1to1(mp, in, inPos, i, out, p, tFactory);
 			}
 			
@@ -669,7 +669,7 @@ public class Interface {
     }
 
     <T>int
-    decodeMP3_unclipped(MPGLib.mpstr_tag mp, byte []in, int bufferPos, int isize, T []out, int osize, ProcessedBytes done, Factory<T> tFactory)
+    decodeMP3_unclipped(MPGLib.mpstr_tag mp, byte []in, int bufferPos, int isize, short []out, int osize, ProcessedBytes done, Decode.FactoryFloatToShort tFactory)
     {
         /* we forbid input with more than 1152 samples per channel for output in unclipped mode */
         if (osize < 1152 * 2) {
@@ -681,15 +681,15 @@ public class Interface {
 
 			@Override
 			public <X>int synth_1to1_mono_ptr(mpstr_tag mp, float[] in,
-					int inPos, X[] out, ProcessedBytes p,
-					Factory<X> tFactory) {
+					int inPos, short[] out, ProcessedBytes p,
+											  Decode.FactoryFloatToShort tFactory) {
 				return decode.synth_1to1_mono_unclipped(mp, in, inPos, out, p, tFactory);
 			}
 
 			@Override
 			public <X>int synth_1to1_ptr(mpstr_tag mp, float[] in, int inPos,
-					int i, X[] out, ProcessedBytes p,
-					Factory<X> tFactory) {
+					int i, short[] out, ProcessedBytes p,
+										 Decode.FactoryFloatToShort tFactory) {
 				return decode.synth_1to1_unclipped(mp, in, inPos, i, out, p, tFactory);
 			}
 			

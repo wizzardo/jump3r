@@ -32,6 +32,10 @@
 
 package de.sciss.jump3r.mpg;
 
+import de.sciss.jump3r.LocalVars;
+
+import java.util.Arrays;
+
 public class DCT64 {
 
 	private TabInit tabInit;
@@ -334,13 +338,16 @@ public class DCT64 {
 	    out1[out1Pos+(0x10 * 15)] = b1[0x1F];
 	}
 
+
+	LocalVars.LocalVar<float[]> bufs = LocalVars.createFloatArray(new float[64]);
 	/*
 	 * the call via dct64 is a trick to force GCC to use
 	 * (new) registers for the b1,b2 pointer to the bufs[xx] field
 	 */
 	public void dct64(float[] a, int aPos, float[] b, int bPos, float[] c,
 			int cPos) {
-		float bufs[] = new float[0x40];
+//		float[] bufs = new float[64];
+		float[] bufs = this.bufs.get();
 		dct64_1(a, aPos, b, bPos, bufs, 0x20, c, cPos);
 	}
 }

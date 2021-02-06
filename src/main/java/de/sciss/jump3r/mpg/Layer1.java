@@ -153,8 +153,8 @@ public class Layer1 {
 	    }
 	}
 
-	public <T> int do_layer1(final mpstr_tag mp, final T[] pcm_sample,
-			final ProcessedBytes pcm_point, final Factory<T> tFactory) {
+	public <T> int do_layer1(final mpstr_tag mp, final short[] pcm_sample,
+			final ProcessedBytes pcm_point, final Decode.FactoryFloatToShort tFactory) {
 	    int     clip = 0;
 	    int balloc[]=new int[2 * MPG123.SBLIMIT];
 	    int scale_index[]=new int[2 * MPG123.SBLIMIT];

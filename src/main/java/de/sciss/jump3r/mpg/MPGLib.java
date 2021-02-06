@@ -22,10 +22,13 @@
  */
 package de.sciss.jump3r.mpg;
 
+import de.sciss.jump3r.LocalVars;
 import de.sciss.jump3r.mp3.Enc;
 import de.sciss.jump3r.mp3.MP3Data;
 import de.sciss.jump3r.mp3.PlottingData;
 import de.sciss.jump3r.mpg.Decode.Factory;
+
+import java.util.Arrays;
 
 public class MPGLib {
 
@@ -94,22 +97,22 @@ public class MPGLib {
 
     /* copy mono samples */
 	@SuppressWarnings("unchecked")
-	protected <DST_TYPE, SRC_TYPE> void COPY_MONO(DST_TYPE[] pcm_l,
-			int pcm_lPos, int processed_samples, SRC_TYPE[] p) {
+	protected <DST_TYPE, SRC_TYPE> void COPY_MONO(short[] pcm_l,
+			int pcm_lPos, int processed_samples, short[] p) {
 		int p_samples = 0;
 		for (int i = 0; i < processed_samples; i++)
-			pcm_l[pcm_lPos++] = (DST_TYPE) (p[p_samples++]);
+			pcm_l[pcm_lPos++] =  (p[p_samples++]);
 	}
 
     /* copy stereo samples */
 	@SuppressWarnings("unchecked")
-	protected <DST_TYPE, SRC_TYPE> void COPY_STEREO(DST_TYPE[] pcm_l,
-			int pcm_lPos, DST_TYPE[] pcm_r, int pcm_rPos,
-			int processed_samples, SRC_TYPE[] p) {
+	protected <DST_TYPE, SRC_TYPE> void COPY_STEREO(short[] pcm_l,
+			int pcm_lPos, short[] pcm_r, int pcm_rPos,
+			int processed_samples, short[] p) {
 		int p_samples = 0;
 		for (int i = 0; i < processed_samples; i++) {
-			pcm_l[pcm_lPos++] = (DST_TYPE) (p[p_samples++]);
-			pcm_r[pcm_rPos++] = (DST_TYPE) (p[p_samples++]);
+			pcm_l[pcm_lPos++] = p[p_samples++];
+			pcm_r[pcm_rPos++] = p[p_samples++];
 		}
 	}
 
@@ -118,7 +121,7 @@ public class MPGLib {
     }
 
     interface IDecoder {
-    	<T>int decode(mpstr_tag mp, byte []in, int bufferPos, int isize, T []out, int osize, ProcessedBytes done, Factory<T> tFactory);
+    	<T>int decode(mpstr_tag mp, byte []in, int bufferPos, int isize, short[]out, int osize, ProcessedBytes done, Decode.FactoryFloatToShort tFactory);
     }
     
     private static final int smpls[][] = {
@@ -135,9 +138,9 @@ public class MPGLib {
      */
 
 	private <S,T>int decode1_headersB_clipchoice(mpstr_tag pmp, byte[] buffer,
-			int bufferPos, int len, S pcm_l[], int pcm_lPos, S pcm_r[], int pcm_rPos, MP3Data mp3data,
-			Enc enc, T[] p, int psize,
-			IDecoder decodeMP3_ptr, Factory<T> tFactory) {
+			int bufferPos, int len, short pcm_l[], int pcm_lPos, short pcm_r[], int pcm_rPos, MP3Data mp3data,
+			Enc enc, short[] p, int psize,
+			IDecoder decodeMP3_ptr, Decode.FactoryFloatToShort tFactory) {
 
         int     processed_samples; /* processed samples per channel */
         int     ret;
@@ -267,26 +270,26 @@ public class MPGLib {
 				
 				@Override
 				public <X>int decode(mpstr_tag mp, byte[] in, int bufferPos, int isize,
-						X[] out, int osize, ProcessedBytes done, Factory<X> tFactory) {
+						short[] out, int osize, ProcessedBytes done, Decode.FactoryFloatToShort tFactory) {
 					return interf.decodeMP3_unclipped(mp, in, bufferPos, isize, out, osize, done, tFactory);
 				}
 			};
-			Float[] out = new Float[OUTSIZE_UNCLIPPED];
-			Factory<Float> tFactory = new Factory<Float>() {
+			short[] out = new short[OUTSIZE_UNCLIPPED];
+			Decode.FactoryFloatToShort tFactory = new Decode.FactoryFloatToShort() {
 
 				@Override
-				public Float create(float x) {
-					return Float.valueOf(x);
+				public short create(float x) {
+					return (short) x;
 				}
 			};
 			// XXX should we avoid the primitive type version?
-			Float[] pcmL = new Float[pcm_l.length];
+			short[] pcmL = new short[pcm_l.length];
 			for (int i = 0; i < pcmL.length; i++) {
-				pcmL[i] = Float.valueOf(pcm_l[i]);
+				pcmL[i] = (short) pcm_l[i];
 			}
-			Float[] pcmR = new Float[pcm_r.length];
+			short[] pcmR = new short[pcm_r.length];
 			for (int i = 0; i < pcmR.length; i++) {
-				pcmR[i] = Float.valueOf(pcm_r[i]);
+				pcmR[i] = (short) pcm_r[i];
 			}
 			int decode1_headersB_clipchoice = decode1_headersB_clipchoice(hip, buffer, bufferPos, len,
 					pcmL, 0, pcmR, 0, mp3data, enc, out, OUTSIZE_UNCLIPPED, dec, tFactory );
@@ -316,6 +319,8 @@ public class MPGLib {
 	    return hip_decode1_headersB(hip, buffer, len, pcm_l, pcm_r, mp3data, enc);
 	}
 
+	LocalVars.LocalVar<short[]> outClipped = LocalVars.createShortArray(new short[OUTSIZE_CLIPPED]);
+
     public int
     hip_decode1_headersB(mpstr_tag hip, byte[] buffer,
                           int len,
@@ -327,36 +332,37 @@ public class MPGLib {
 				
 				@Override
 				public <X>int decode(mpstr_tag mp, byte[] in, int bufferPos, int isize,
-						X[] out, int osize, ProcessedBytes done, Factory<X> tFactory) {
+									 short[] out, int osize, ProcessedBytes done, Decode.FactoryFloatToShort tFactory) {
 					return interf.decodeMP3(mp, in, bufferPos, isize, out, osize, done, tFactory);
 				}
 			};
-			Short[] out = new Short[OUTSIZE_CLIPPED];
-			Factory<Short> tFactory = new Factory<Short>() {
+//			short[] out = new short[OUTSIZE_CLIPPED];
+			short[] out = outClipped.get();
+			Decode.FactoryFloatToShort tFactory = new Decode.FactoryFloatToShort() {
 
 				@Override
-				public Short create(float x) {
-					return Short.valueOf((short)x);
+				public short create(float x) {
+					return (short) x;
 				}
 			};
-			// XXX should we avoid the primitive type version?
-			Short[] pcmL = new Short[pcm_l.length];
-			for (int i = 0; i < pcmL.length; i++) {
-				pcmL[i] = Short.valueOf(pcm_l[i]);
-			}
-			Short[] pcmR = new Short[pcm_r.length];
-			for (int i = 0; i < pcmR.length; i++) {
-				pcmR[i] = Short.valueOf(pcm_r[i]);
-			}
-			int decode1_headersB_clipchoice = decode1_headersB_clipchoice(hip, buffer, 0, len, pcmL, 0, pcmR, 0, mp3data,
+//			// XXX should we avoid the primitive type version?
+//			Short[] pcmL = new Short[pcm_l.length];
+//			for (int i = 0; i < pcmL.length; i++) {
+//				pcmL[i] = Short.valueOf(pcm_l[i]);
+//			}
+//			Short[] pcmR = new Short[pcm_r.length];
+//			for (int i = 0; i < pcmR.length; i++) {
+//				pcmR[i] = Short.valueOf(pcm_r[i]);
+//			}
+			int decode1_headersB_clipchoice = decode1_headersB_clipchoice(hip, buffer, 0, len, pcm_l, 0, pcm_r, 0, mp3data,
                                                enc, out, OUTSIZE_CLIPPED,
                                                dec, tFactory );
-			for (int i = 0; i < pcmL.length; i++) {
-				pcm_l[i] = pcmL[i];
-			}
-			for (int i = 0; i < pcmR.length; i++) {
-				pcm_r[i] = pcmR[i];
-			}
+//			for (int i = 0; i < pcmL.length; i++) {
+//				pcm_l[i] = pcmL[i];
+//			}
+//			for (int i = 0; i < pcmR.length; i++) {
+//				pcm_r[i] = pcmR[i];
+//			}
 			return decode1_headersB_clipchoice;
         }
         return -1;

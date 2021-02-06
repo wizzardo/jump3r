@@ -24,6 +24,8 @@
 
 package de.sciss.jump3r.mp3;
 
+import de.sciss.jump3r.LocalVars;
+
 import java.util.Arrays;
 
 
@@ -550,6 +552,8 @@ public class Takehiro {
 		if (i == 0)
 			return bits;
 
+		Bits bi = bitsTL.get();
+
 		if (gi.block_type == Encoder.SHORT_TYPE) {
 			a1 = 3 * gfc.scalefac_band.s[3];
 			if (a1 > gi.big_values)
@@ -565,7 +569,8 @@ public class Takehiro {
 			a2 = gfc.scalefac_band.l[a1 + a2 + 2];
 			a1 = gfc.scalefac_band.l[a1 + 1];
 			if (a2 < i) {
-				Bits bi = new Bits(bits);
+//				Bits bi = new Bits(bits);
+				bi.bits = bits;
 				gi.table_select[2] = choose_table(ix, a2, i, bi);
 				bits = bi.bits;
 			}
@@ -590,12 +595,14 @@ public class Takehiro {
 
 		/* Count the number of bits necessary to code the bigvalues region. */
 		if (0 < a1) {
-			Bits bi = new Bits(bits);
+//			Bits bi = new Bits(bits);
+			bi.bits = bits;
 			gi.table_select[0] = choose_table(ix, 0, a1, bi);
 			bits = bi.bits;
 		}
 		if (a1 < a2) {
-			Bits bi = new Bits(bits);
+//			Bits bi = new Bits(bits);
+			bi.bits = bits;
 			gi.table_select[1] = choose_table(ix, a1, a2, bi);
 			bits = bi.bits;
 		}
@@ -651,6 +658,21 @@ public class Takehiro {
 		return noquant_count_bits(gfc, gi, prev_noise);
 	}
 
+
+	LocalVars.LocalVar<Bits> bitsTL = new LocalVars.LocalVar<Bits>() {
+		@Override
+		protected Bits initialValue() {
+			return new Bits(0);
+		}
+
+		@Override
+		public Bits get() {
+			Bits bits = super.get();
+			bits.bits = 0;
+			return bits;
+		}
+	};
+
 	/**
 	 * re-calculate the best scalefac_compress using scfsi the saved bits are
 	 * kept in the bit reservoir.
@@ -669,7 +691,8 @@ public class Takehiro {
 			if (a1 >= bigv)
 				break;
 			int r0bits = 0;
-			Bits bi = new Bits(r0bits);
+//			Bits bi = new Bits(r0bits);
+			Bits bi = bitsTL.get();
 			int r0t = choose_table(ix, 0, a1, bi);
 			r0bits = bi.bits;
 
@@ -679,7 +702,8 @@ public class Takehiro {
 					break;
 
 				int bits = r0bits;
-				bi = new Bits(bits);
+//				bi = new Bits(bits);
+				bi.bits = bits;
 				int r1t = choose_table(ix, a1, a2, bi);
 				bits = bi.bits;
 				if (r01_bits[r0 + r1] > bits) {
@@ -698,6 +722,9 @@ public class Takehiro {
 			final int r1_tbl[]) {
 		int bigv = cod_info2.big_values;
 
+//			Bits bi = new Bits(bits);
+		Bits bi = bitsTL.get();
+
 		for (int r2 = 2; r2 < Encoder.SBMAX_l + 1; r2++) {
 			int a2 = gfc.scalefac_band.l[r2];
 			if (a2 >= bigv)
@@ -707,7 +734,7 @@ public class Takehiro {
 			if (gi.part2_3_length <= bits)
 				break;
 
-			Bits bi = new Bits(bits);
+			bi.bits = bits;
 			int r2t = choose_table(ix, a2, bigv, bi);
 			bits = bi.bits;
 			if (gi.part2_3_length <= bits)
@@ -723,15 +750,37 @@ public class Takehiro {
 		}
 	}
 
-	public void best_huffman_divide(final LameInternalFlags gfc,
-			GrInfo gi) {
-		GrInfo cod_info2 = new GrInfo();
+
+	LocalVars.LocalVar<GrInfo> cod_info2TL = new LocalVars.LocalVar<GrInfo>(){
+		@Override
+		protected GrInfo initialValue() {
+			return new GrInfo();
+		}
+
+		@Override
+		public GrInfo get() {
+			return super.get().clear();
+		}
+	};
+
+	LocalVars.LocalVar<int[]> r01_bitsTL = LocalVars.createIntArray(new int[23]);
+	LocalVars.LocalVar<int[]> r01_divTL = LocalVars.createIntArray(new int[23]);
+	LocalVars.LocalVar<int[]> r0_tblTL = LocalVars.createIntArray(new int[23]);
+	LocalVars.LocalVar<int[]> r1_tblTL = LocalVars.createIntArray(new int[23]);
+
+	public void best_huffman_divide(final LameInternalFlags gfc, GrInfo gi) {
+//		GrInfo cod_info2 = new GrInfo();
+		GrInfo cod_info2 = cod_info2TL.get();
 		final int[] ix = gi.l3_enc;
 
-		int r01_bits[] = new int[7 + 15 + 1];
-		int r01_div[] = new int[7 + 15 + 1];
-		int r0_tbl[] = new int[7 + 15 + 1];
-		int r1_tbl[] = new int[7 + 15 + 1];
+//		int r01_bits[] = new int[23]; //7 + 15 + 1
+//		int r01_div[] = new int[23];
+//		int r0_tbl[] = new int[23];
+//		int r1_tbl[] = new int[23];
+		int r01_bits[] = r01_bitsTL.get(); //7 + 15 + 1
+		int r01_div[] = r01_divTL.get();
+		int r0_tbl[] = r0_tblTL.get();
+		int r1_tbl[] = r1_tblTL.get();
 
 		/* SHORT BLOCK stuff fails for MPEG2 */
 		if (gi.block_type == Encoder.SHORT_TYPE && gfc.mode_gr == 1)

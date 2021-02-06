@@ -275,9 +275,9 @@ public class Layer2 {
         fr.II_sblimit = sblim;
     }
 
-	public <T> int do_layer2(final mpstr_tag mp, final T[] pcm_sample,
+	public <T> int do_layer2(final mpstr_tag mp, final short[] pcm_sample,
 			final ProcessedBytes pcm_point, final ISynth synth,
-			final Factory<T> tFactory) {
+			final Decode.FactoryFloatToShort tFactory) {
         int     clip = 0;
         int     i, j;
         float    fraction[][][]=new float[2][4][MPG123.SBLIMIT]; /* pick_table clears unused subbands */

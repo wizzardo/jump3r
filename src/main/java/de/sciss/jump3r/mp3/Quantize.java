@@ -26,6 +26,8 @@
 
 package de.sciss.jump3r.mp3;
 
+import de.sciss.jump3r.LocalVars;
+
 import java.util.Arrays;
 
 public class Quantize {
@@ -821,6 +823,19 @@ public class Quantize {
 		return !status;
 	}
 
+	LocalVars.LocalVar<float[]> save_xrpowTL = LocalVars.createFloatArray(new float[576]);
+	LocalVars.LocalVar<GrInfo> cod_info_wTL = new LocalVars.LocalVar<GrInfo>(new GrInfo()){
+		@Override
+		public GrInfo get() {
+			return super.get().clear();
+		}
+	};
+	LocalVars.LocalVar<CalcNoiseData> prev_noiseTL = new LocalVars.LocalVar<CalcNoiseData>(new CalcNoiseData()){
+		@Override
+		public CalcNoiseData get() {
+			return super.get().clear();
+		}
+	};
 	/**
 	 * <PRE>
 	 *  Function: The outer iteration loop controls the masking conditions
@@ -848,12 +863,14 @@ public class Quantize {
 			final GrInfo cod_info, final float[] l3_xmin, float xrpow[],
 			final int ch, final int targ_bits) {
 		final LameInternalFlags gfc = gfp.internal_flags;
-		GrInfo cod_info_w = new GrInfo();
-		float save_xrpow[] = new float[576];
+//		GrInfo cod_info_w = new GrInfo();
+		GrInfo cod_info_w = cod_info_wTL.get();
+//		float save_xrpow[] = new float[576];
+		float save_xrpow[] = save_xrpowTL.get();
 		float distort[] = new float[L3Side.SFBMAX];
 		CalcNoiseResult best_noise_info = new CalcNoiseResult();
 		int better;
-		CalcNoiseData prev_noise = new CalcNoiseData();
+		CalcNoiseData prev_noise = prev_noiseTL.get();
 		int best_part2_3_length = 9999999;
 		boolean bEndOfSearch = false;
 		boolean bRefine = false;
@@ -875,10 +892,11 @@ public class Quantize {
 		int age = 0;
 		System.arraycopy(xrpow, 0, save_xrpow, 0, 576);
 
+		CalcNoiseResult noise_info = new CalcNoiseResult();
 		while (!bEndOfSearch) {
 			/* BEGIN MAIN LOOP */
 			do {
-				CalcNoiseResult noise_info = new CalcNoiseResult();
+				noise_info.clear();
 				int search_limit;
 				int maxggain = 255;
 
@@ -971,7 +989,7 @@ public class Quantize {
 				/* save data so we can restore this quantization later */
 				if (better != 0) {
 					best_part2_3_length = cod_info.part2_3_length;
-					best_noise_info = noise_info;
+					noise_info.copyInto(best_noise_info);
 					cod_info.assign(cod_info_w);
 					age = 0;
 					/* save data so we can restore this quantization later */

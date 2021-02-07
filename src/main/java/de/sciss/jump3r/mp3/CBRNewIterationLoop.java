@@ -1,5 +1,7 @@
 package de.sciss.jump3r.mp3;
 
+import de.sciss.jump3r.LocalVars;
+
 /**
  * author/date??
  * 
@@ -13,6 +15,8 @@ public final class CBRNewIterationLoop implements IIterationLoop {
 	 * 
 	 */
 	private final Quantize quantize;
+	LocalVars.LocalVar<float[]> xrpowTL = LocalVars.createFloatArray(new float[576]);
+	LocalVars.LocalVar<float[]> l3_xminTL = LocalVars.createFloatArray(new float[L3Side.SFBMAX]);
 
 	/**
 	 * @param quantize
@@ -24,8 +28,10 @@ public final class CBRNewIterationLoop implements IIterationLoop {
 	public void iteration_loop(final LameGlobalFlags gfp, final float pe[][],
 			final float ms_ener_ratio[], final III_psy_ratio ratio[][]) {
 		final LameInternalFlags gfc = gfp.internal_flags;
-		float l3_xmin[] = new float[L3Side.SFBMAX];
-		float xrpow[] = new float[576];
+//		float l3_xmin[] = new float[L3Side.SFBMAX];
+		float l3_xmin[] = l3_xminTL.get();
+//		float xrpow[] = new float[576];
+		float xrpow[] = xrpowTL.get();
 		int targ_bits[] = new int[2];
 		int mean_bits = 0, max_bits;
 		final IIISideInfo l3_side = gfc.l3_side;

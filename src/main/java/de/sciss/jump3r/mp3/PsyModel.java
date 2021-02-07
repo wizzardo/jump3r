@@ -139,6 +139,7 @@ blocktype_d[2]        block type to use for previous granule
 package de.sciss.jump3r.mp3;
 
 import de.sciss.jump3r.LocalVars;
+import org.graalvm.compiler.virtual.phases.ea.EffectsBlockState;
 
 import java.util.Arrays;
 
@@ -1002,6 +1003,10 @@ public class PsyModel {
 	    -5.52212e-17f * 2, -0.313819f * 2
 	};
 
+	LocalVars.LocalVar<float[]> eblTL = LocalVars.createFloatArray(new float[Encoder.CBANDS + 1]);
+	LocalVars.LocalVar<float[]> ebsTL = LocalVars.createFloatArray(new float[Encoder.CBANDS + 1]);
+	LocalVars.LocalVar<float[]> thr_TL = LocalVars.createFloatArray(new float[Encoder.CBANDS + 1]);
+
 	public final int L3psycho_anal_ns(final LameGlobalFlags gfp,
 			final float[] buffer[], final int bufPos, final int gr_out,
 			final III_psy_ratio masking_ratio[][],
@@ -1015,12 +1020,19 @@ public class PsyModel {
 		final LameInternalFlags gfc = gfp.internal_flags;
 
 		/* fft and energy calculation */
-		float wsamp_L[][] = new float[2][Encoder.BLKSIZE];
-		float wsamp_S[][][] = new float[2][3][Encoder.BLKSIZE_s];
+//		float wsamp_L[][] = new float[2][Encoder.BLKSIZE];
+//		float wsamp_S[][][] = new float[2][3][Encoder.BLKSIZE_s];
+		float wsamp_L[][] = wsamp_LTL.get();
+		float wsamp_S[][][] = wsamp_STL.get();
 
 		/* convolution */
-		float eb_l[] = new float[Encoder.CBANDS + 1], eb_s[] = new float[Encoder.CBANDS + 1];
-		float thr[] = new float[Encoder.CBANDS + 2];
+//		float[] eb_l = new float[Encoder.CBANDS + 1];
+//		float[] eb_s = new float[Encoder.CBANDS + 1];
+		float[] eb_l = eblTL.get();
+		float[] eb_s = ebsTL.get();
+
+//		float thr[] = new float[Encoder.CBANDS + 2];
+		float thr[] = thr_TL.get();
 
 		/* block type */
 		int blocktype[] = new int[2], uselongblock[] = new int[2];
@@ -1031,12 +1043,11 @@ public class PsyModel {
 		int sb, sblock;
 
 		/* variables used for --nspsytune */
-		float ns_hpfsmpl[][] = new float[2][576];
+//		float ns_hpfsmpl[][] = new float[2][576];
+		float ns_hpfsmpl[][] = ns_hpfsmplTL.get();
 		float pcfact;
 
-		int mask_idx_l[] = new int[Encoder.CBANDS + 2], mask_idx_s[] = new int[Encoder.CBANDS + 2];
-
-		Arrays.fill(mask_idx_s, 0);
+		int[] mask_idx_l = mask_idx_lTL.get();
 
 		numchn = gfc.channels_out;
 		/* chn=2 and 3 = Mid and Side channels */
@@ -1095,10 +1106,15 @@ public class PsyModel {
 			float attack_intensity[] = new float[12];
 			int ns_uselongblock = 1;
 			float attackThreshold;
-			float max[] = new float[Encoder.CBANDS], avg[] = new float[Encoder.CBANDS];
+//			float[] max = new float[Encoder.CBANDS];
+//			float[] avg = new float[Encoder.CBANDS];
+			float[] max = maxTL.get();
+			float[] avg = avgTL.get();
 			int ns_attacks[] = { 0, 0, 0, 0 };
-			float fftenergy[] = new float[Encoder.HBLKSIZE];
-			float fftenergy_s[][] = new float[3][Encoder.HBLKSIZE_s];
+//			float fftenergy[] = new float[Encoder.HBLKSIZE];
+//			float fftenergy_s[][] = new float[3][Encoder.HBLKSIZE_s];
+			float fftenergy[] = fftenergyTL.get();
+			float fftenergy_s[][] = fftenergy_sTL.get();
 
 			/*
 			 * rh 20040301: the following loops do access one off the limits so

@@ -31,6 +31,8 @@ import de.sciss.jump3r.mpg.MPGLib.ProcessedBytes;
 import de.sciss.jump3r.mpg.MPGLib.buf;
 import de.sciss.jump3r.mpg.MPGLib.mpstr_tag;
 
+import java.util.*;
+
 public class Interface {
 
 	private VBRTag vbr;
@@ -103,13 +105,34 @@ public class Interface {
 	    }
 	}
 
+	protected Map<Integer, List<byte[]>> buffersPool = new HashMap<>(8, 1);
+
+	protected byte[] getBuf(int size) {
+		List<byte[]> l = buffersPool.get(size);
+		if (l == null || l.isEmpty()) {
+			return new byte[size];
+		}
+		byte[] buf = l.remove(l.size() - 1);
+		Arrays.fill(buf, (byte) 0);
+		return buf;
+	}
+
+	protected void releaseBuf(byte[] buf) {
+		List<byte[]> l = buffersPool.get(buf.length);
+		if (l == null) {
+			l = new ArrayList<>();
+			buffersPool.put(buf.length, l);
+		}
+		l.add(buf);
+	}
+
 	buf
 	addbuf(mpstr_tag mp, byte []buf, int bufPos, int size)
 	{
 	    buf nbuf;
 
 	    nbuf = new buf();
-	    nbuf.pnt = new byte[size];
+	    nbuf.pnt = getBuf(size);
 	    nbuf.size = size;
 	    System.arraycopy(buf, bufPos, nbuf.pnt, 0, size);
 	    nbuf.next = null;
@@ -141,6 +164,7 @@ public class Interface {
 	        mp.tail = mp.head = null;
 	    }
 
+	    releaseBuf(buf.pnt);
 	    buf.pnt=null;
 	    buf=null;
 
